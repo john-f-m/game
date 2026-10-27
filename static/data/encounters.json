@@ -1,10 +1,10 @@
 {
-  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop. Conversation traps: 'black_hole' (pulls you in when you get close), 'physics' (triggers when you talk to them three times in quick succession, then walks you to their 'home' spot) and 'drop_in' (arrives from the elevator now and then and seeks you out).",
+  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop. Hosts of a 'jeopardy' quiz can have their own reactions: 'quiz_right', 'quiz_wrong', 'quiz_late' (lists of lines). Everyone with a desk (no patrol or drop-in) leaves it on an errand now and then; 'ambient.errands' has what people say when you catch them. Conversation traps: 'black_hole' (pulls you in when you get close; 'topic' names what they love to talk about), 'physics' (triggers when you talk to them three times in quick succession, then walks you to their 'home' spot) and 'drop_in' (arrives from the elevator now and then and seeks you out).",
   "reports": [
     { "id": "weekly", "name": "Weekly Report", "task": "detector", "signoff": "Nic" },
-    { "id": "tps", "name": "TPS Report", "signoff": "Katie W." },
+    { "id": "tps", "name": "TPS Report", "signoff": "Katie" },
     { "id": "mission_dose", "name": "Mission Dose Report", "task": "vehicle", "signoff": "Kevin" },
-    { "id": "astronaut_dose", "name": "Astronaut Dose Report", "task": "medical", "signoff": "John FM" },
+    { "id": "astronaut_dose", "name": "Astronaut Dose Report", "task": "medical", "signoff": "John" },
     { "id": "astronaut_risk", "name": "Astronaut Risk Report", "task": "astronaut", "stamps": ["eddie", "clifton"] }
   ],
   "npc_encounters": [
@@ -13,18 +13,18 @@
       "npc": "Nic",
       "look": { "hair": "#2b1d14", "skin": "#c98e62", "shirt": "#6d8f4e", "pants": "#3a3f4a" },
       "lines": [
-        "🗣️ Nic: Ugh, Eddie just added another form to the radiation tracking stack.",
+        "🗣️ Nic: Eddie added another form to the radiation tracking stack. I've started giving them names.",
         "🗣️ Nic: Sometimes I wonder if a solar flare could take out this whole floor... and our paperwork with it."
       ],
       "sign": "Fine, I'll sign off on the Weekly Report. If the flare takes out the paperwork, at least my signature goes down with it."
     },
     {
       "location": [9, 22],
-      "npc": "Katie W.",
+      "npc": "Katie",
       "look": { "hair": "#a0522d", "skin": "#f0c8a0", "shirt": "#8e5aa8", "pants": "#2d2f3a", "long_hair": true },
       "lines": [
-        "🗣️ Katie W.: If Clifton asks me about my timesheet one more time, I’m launching him into a supernova.",
-        "🗣️ Katie W.: At least if the sun explodes, I won’t have to finish my TPS reports."
+        "🗣️ Katie: If Clifton asks about my timesheet one more time, I'm framing it and hanging it in his office.",
+        "🗣️ Katie: At least if the sun explodes, I won’t have to finish my TPS reports."
       ],
       "wants": {
         "item": "timesheet",
@@ -35,11 +35,12 @@
     {
       "location": [22, 14],
       "npc": "Kevin",
-      "title": "Known hazard",
+      "title": "Neutrino enthusiast",
       "look": { "hair": "#5a3a22", "skin": "#e8b48c", "shirt": "#c0504d", "pants": "#3b3b3b", "mustache": "#5a3a22", "glasses": "thick" },
       "lines": [
-        "🗣️ Kevin: Eddie says if I touch the Mars dosimeter again, he’ll reassign me to the printer queue.",
-        "🗣️ Kevin: I swear, I’ve had more meaningful conversations with cosmic rays than with Clifton."
+        "🗣️ Kevin: About sixty-five billion solar neutrinos go through your thumbnail every second. Isn't that wonderful?",
+        "🗣️ Kevin: Neutrinos hardly ever interact with anything. You have to admire the focus.",
+        "🗣️ Kevin: If you ever want to talk physics, I'm right here. Neutrinos especially. Any time."
       ],
       "wants": {
         "item": "coffee",
@@ -48,22 +49,24 @@
       },
       "black_hole": {
         "radius": 3.2,
+        "topic": "neutrinos",
         "lines": [
-          "So, funny story about the Mars dosimeter. It starts in 2019...",
-          "Did I ever tell you about my commute? There's a left turn you won't believe.",
-          "Hang on, this ties back to the dosimeter thing. Sort of.",
-          "Anyway, where was I? Oh right, the beginning.",
-          "You know what the problem with cosmic rays is? Okay, there are several..."
+          "So, neutrinos come in three flavors, and they change flavor in flight. Let's start with the electron neutrino...",
+          "A neutrino could go through a light-year of lead and probably not notice. Okay, so picture the lead...",
+          "IceCube watches a whole cubic kilometer of Antarctic ice for them. A cubic kilometer! Let me tell you about the drilling.",
+          "Supernova 1987A: two dozen neutrinos, three detectors, hours before the light got here. Let me walk you through each one.",
+          "Hang on, this ties back to the muon neutrino. Sort of. Bear with me.",
+          "And those are just the solar ones. Don't get me started on the atmospheric neutrinos. Okay, I'll get started."
         ]
       }
     },
     {
       "location": [29, 13],
-      "npc": "John FM",
+      "npc": "John",
       "look": { "hair": "#3a3a3a", "skin": "#d9a37c", "shirt": "#4f7fb5", "pants": "#2f3340", "glasses": true },
       "lines": [
-        "🗣️ John FM: I told Eddie I was exposed to gamma... he said ‘Did you file an R-13 for that?’",
-        "🗣️ John FM: If Clifton asks ‘what is it you do here?’ again, I’ll tell him: I absorb solar storms... emotionally."
+        "🗣️ John: I told Eddie I was exposed to gamma... he said ‘Did you file an R-13 for that?’",
+        "🗣️ John: If Clifton asks ‘what is it you do here?’ again, I’ll tell him: I absorb solar storms... emotionally."
       ],
       "wants": {
         "item": "r13",
@@ -72,14 +75,14 @@
       }
     },
     {
-      "npc": "Ryan R",
+      "npc": "Ryan",
       "title": "IT",
       "look": { "hair": "#6b4a2b", "skin": "#e6b391", "shirt": "#2e2f38", "pants": "#3a3f4a", "glasses": true },
       "patrol": [[16, 21], [17, 19], [10, 19], [10, 4], [20, 4], [20, 19], [17, 19]],
       "speed": 1.3,
       "lines": [
-        "🗣️ Ryan R: Have you tried turning the solar storm off and on again?",
-        "🗣️ Ryan R: The printer isn't broken. It's a physics problem. Everything is a physics problem."
+        "🗣️ Ryan: Have you tried turning the solar storm off and on again?",
+        "🗣️ Ryan: The printer isn't broken. It's a physics problem. Everything is a physics problem."
       ],
       "wants": {
         "item": "memos",
@@ -112,36 +115,36 @@
     },
     {
       "location": [19, 22],
-      "npc": "Jennifer M",
+      "npc": "Jennifer",
       "title": "Console operations",
       "look": { "hair": "#1f1a17", "skin": "#c98e62", "shirt": "#2e8b8b", "pants": "#2d2f3a", "long_hair": true },
       "lines": [
-        "🗣️ Jennifer M: The console room runs on caffeine and checklists.",
-        "🗣️ Jennifer M: If a run gets queued behind one of Ryan's physics jobs, it's queued forever."
+        "🗣️ Jennifer: The console room runs on caffeine and checklists.",
+        "🗣️ Jennifer: If a run gets queued behind one of Ryan's physics jobs, it's queued forever."
       ],
       "perk": "sim_priority",
       "perk_line": "I'll bump your vehicle dose run to the front of the queue. Twice as fast. Don't tell Ryan."
     },
     {
       "location": [21, 22],
-      "npc": "Mark L",
+      "npc": "Mark",
       "title": "Console IT",
       "look": { "hair": "#7a5230", "skin": "#e6b391", "shirt": "#3a4a5a", "pants": "#2d2f3a", "glasses": true },
       "lines": [
-        "🗣️ Mark L: Console IT. If it beeps, it's mine.",
-        "🗣️ Mark L: Fifteen monitors, one keyboard, zero problems. Okay, two problems."
+        "🗣️ Mark: Console IT. If it beeps, it's mine.",
+        "🗣️ Mark: Fifteen monitors, one keyboard, zero problems. Okay, two problems."
       ],
       "perk": "remote_access",
       "perk_line": "I'll set you up with remote access to the vehicle run. Go do your other stuff; it'll keep cranking."
     },
     {
       "location": [6, 7],
-      "npc": "Steve J",
+      "npc": "Steve",
       "title": "Spreadsheets",
       "look": { "hair": "#4a3a2a", "skin": "#d9a37c", "shirt": "#5c9e4a", "pants": "#353b48", "glasses": true },
       "lines": [
-        "🗣️ Steve J: Everything is a spreadsheet if you believe in yourself.",
-        "🗣️ Steve J: Eddie asked for a legend on my color-coded dose tracker. I gave him a pivot table. He hasn't spoken to me since."
+        "🗣️ Steve: Everything is a spreadsheet if you believe in yourself.",
+        "🗣️ Steve: Eddie asked for a legend on my color-coded dose tracker. I gave him a pivot table. He hasn't spoken to me since."
       ],
       "perk": "fast_reviews",
       "perk_line": "Hand me your reports. Pivot tables, conditional formatting, frozen header row... There. Management will approve these twice as fast."
@@ -160,44 +163,49 @@
     },
     {
       "location": [13, 1],
-      "npc": "Serkan G",
+      "npc": "Serkan",
       "title": "Cosmic radiation modeling",
       "look": { "hair": "#2b2622", "skin": "#d9a37c", "shirt": "#b28ad6", "pants": "#2d2f3a", "rainbow_jacket": true, "bracelets": true },
       "lines": [
-        "🗣️ Serkan G: I ran the galactic cosmic ray model again last night. For fun. Want to see the spectra?",
-        "🗣️ Serkan G: My Little Pony taught me friendship is magic. Transport codes taught me shielding is mass.",
-        "🗣️ Serkan G: I'm in my modeling era.",
-        "🗣️ Serkan G: These friendship bracelets? Traded them at the concert. This one says HZE."
+        "🗣️ Serkan: I ran the galactic cosmic ray model again last night. For fun. Want to see the spectra?",
+        "🗣️ Serkan: My Little Pony taught me friendship is magic. Transport codes taught me shielding is mass.",
+        "🗣️ Serkan: I'm in my modeling era.",
+        "🗣️ Serkan: These friendship bracelets? Traded them at the concert. This one says HZE."
       ],
       "perk": "gcr_model",
       "perk_line": "Vehicle dose? I already modeled it. Twice. Here, take my run, it's half done."
     },
     {
       "location": [29, 5],
-      "npc": "Pat O",
+      "npc": "Pat",
       "title": "Galactic cosmic ray model",
       "look": { "hair": "#b5b5b5", "skin": "#e8b48c", "shirt": "#8a6f4e", "pants": "#3b3b3b", "glasses": true, "mustache": "#b5b5b5" },
       "lines": [
-        "🗣️ Pat O: I once told a joke about a cosmic ray. It went right through everyone.",
-        "🗣️ Pat O: Back in my day we tracked cosmic rays with a cloud chamber and a lot of patience. Mostly patience.",
-        "🗣️ Pat O: Heavy ions. Still lighter than my thesis committee.",
-        "🗣️ Pat O: My GCR model has been around the galaxy a few times. Like me. Your vehicle run? Oh, I wouldn't know.",
-        "🗣️ Pat O: Remember when the solar minimum was a minimum? Good times. Good, low-flux times.",
-        "🗣️ Pat O: A neutron walks into a bar and asks the price. The bartender says: for you, no charge.",
-        "🗣️ Pat O: They don't make particles like they used to. Well, they do. That's the problem.",
-        "🗣️ Pat O: Help with your report? Ha! Did I ever tell you about the 1989 solar storm? What a year."
+        "🗣️ Pat: I once told a joke about a cosmic ray. It went right through everyone.",
+        "🗣️ Pat: Back in my day we tracked cosmic rays with a cloud chamber and a lot of patience. Mostly patience.",
+        "🗣️ Pat: Heavy ions. Still lighter than my thesis committee.",
+        "🗣️ Pat: My GCR model has been around the galaxy a few times. Like me. Your vehicle run? Oh, I wouldn't know.",
+        "🗣️ Pat: Remember when the solar minimum was a minimum? Good times. Good, low-flux times.",
+        "🗣️ Pat: A neutron walks into a bar and asks the price. The bartender says: for you, no charge.",
+        "🗣️ Pat: They don't make particles like they used to. Well, they do. That's the problem.",
+        "🗣️ Pat: Help with your report? Ha! Did I ever tell you about the 1989 solar storm? What a year."
       ]
     },
     {
       "location": [24, 7],
-      "npc": "Amir B",
+      "npc": "Amir",
       "title": "Jeopardy Aficionado",
-      "look": { "hair": "#1f1a17", "skin": "#b98560", "shirt": "#2f4f9f", "pants": "#2f3340", "beard": true },
+      "look": { "hair": "#2a1d16", "skin": "#b98560", "shirt": "#2f4f9f", "pants": "#2f3340" },
       "lines": [
-        "🗣️ Amir B: I'll take Space Weather for 800.",
-        "🗣️ Amir B: Remember: answer in the form of a question."
+        "🗣️ Amir: Ope, didn't see ya there. I'll take Space Weather for 800, if that's all right.",
+        "🗣️ Amir: Now remember, answer in the form of a question. You bet.",
+        "🗣️ Amir: Back home in Kansas, when the sky turns green you head for the basement. Same goes for a solar storm, I'd say.",
+        "🗣️ Amir: Grab yourself a pop and let's play a round real quick."
       ],
       "perk": "jeopardy",
+      "quiz_right": ["Well, how about that! That's correct.", "Heck yeah, that's right. You're on a roll now.", "Well, I'll be. Correct!"],
+      "quiz_wrong": ["Ope, sorry. Not quite.", "Aw, shoot. Close, though.", "Oh, for Pete's sake, so close."],
+      "quiz_late": ["Ope, that's time.", "Well, shoot, that's time."],
       "quiz": [
         { "clue": "This SI unit of dose equivalent is worth 100 rem.", "choices": ["What is the gray?", "What is the sievert?", "What is the becquerel?"], "answer": 2 },
         { "clue": "This SI unit of absorbed dose is one joule per kilogram.", "choices": ["What is the gray?", "What is the curie?", "What is the roentgen?"], "answer": 1 },
@@ -212,12 +220,12 @@
     },
     {
       "location": [16, 13],
-      "npc": "Mark S",
+      "npc": "Mark",
       "title": "People Person",
       "look": { "hair": "#8a6a4a", "skin": "#e8b48c", "shirt": "#eef0f2", "pants": "#3b3b3b", "tie": "#c0392b" },
       "lines": [
-        "🗣️ Mark S: I'm a people person. I take the paperwork to management so the engineers don't have to.",
-        "🗣️ Mark S: What would you say I do here? I talk to Eddie and Clifton, so you don't have to."
+        "🗣️ Mark: I'm a people person. I take the paperwork to management so the engineers don't have to.",
+        "🗣️ Mark: What would you say I do here? I talk to Eddie and Clifton, so you don't have to."
       ],
       "perk": "people_person",
       "perk_line": "If Eddie or Clifton corner you, I'll step in and smooth it over. I have people skills."
@@ -241,11 +249,11 @@
       ]
     },
     {
-      "npc": "Neil Z",
+      "npc": "Neil",
       "title": "Former manager",
       "look": { "skin": "#e8b48c", "shirt": "#cfe0f5", "pants": "#3b3b3b", "bald": true, "dress_shirt": true },
       "lines": [
-        "🗣️ Neil Z: Oh, hi. Just passing through. As one does."
+        "🗣️ Neil: Oh, hi. Just passing through. As one does."
       ],
       "drop_in": {
         "from": [11, 10],
@@ -264,6 +272,14 @@
     }
   ],
   "ambient": {
+    "errands": {
+      "coffee": ["Coffee run. Back in a minute.", "Is there any coffee left? Asking for the whole office.", "Just grabbing a refill. Walk with me?"],
+      "copy": ["Printing. Fingers crossed.", "The copier and I are working through some things.", "Collating. Very important collating."],
+      "console": ["Checking on a run in the console room.", "Mark's helping me with a login thing.", "Just looking at the big screens for a minute."],
+      "lab": ["Just borrowing a detector. I'll bring it back.", "Ramona said I could look at the new dosimeters.", "I wanted to see the detector prototype in person."],
+      "visit": ["Just catching up with someone.", "Had to ask a question in person. Faster than email.", "Dropping off a cable I borrowed in 2019."],
+      "stroll": ["Stretching my legs. Doctor's orders.", "Walking off a long meeting.", "Getting my steps in before the deadline."]
+    },
     "titles": ["Dose analyst", "Health physicist", "Space weather forecaster", "Radiation biologist", "Software engineer", "Data analyst", "Console operator", "Contractor", "Intern", "Shielding analyst"],
     "lines": [
       "Busy. The dose numbers are due today.",
@@ -283,7 +299,7 @@
       "I'm on hold with IT. Ryan says it's a physics problem.",
       "The crew's fine. The crew is always fine. We make sure of that.",
       "Have you seen Neil? He was here, said something about neutrinos, and left.",
-      "Kevin got me for forty minutes this morning. Stay strong.",
+      "Kevin explained neutrino oscillation to me for forty minutes. I think I finally get it.",
       "I color-coded my calendar. Now it's just all red.",
       "Lunch? I don't know her.",
       "Does anyone know the Wi-Fi password? It changed. Again."
@@ -291,7 +307,7 @@
   },
   "puns": [
     "🗣️ You hear someone mutter: ‘I was told there would be no ionizing radiation...’",
-    "🗣️ A sigh echoes from the cubicle: ‘If someone steals my lead shielding again, I’m gonna burn this place down.’",
+    "🗣️ A sigh echoes from the cubicle: ‘If someone borrows my lead shielding again, I’m putting my name on it. In lead.’",
     "🗣️ A voice jokes: ‘I deal with solar proton events... not people.’",
     "🗣️ Overheard: ‘Yeah, I’m gonna need you to stay during the coronal mass ejection...’",
     "🗣️ Someone’s yelling: ‘PC Load Letter?! What does that even mean in a vacuum?!’",
@@ -299,7 +315,7 @@
     "🗣️ From the cubicles: ‘What is... a coronal mass ejection?’ ‘Correct!’",
     "🗣️ Someone mutters: ‘Steve put the coffee budget in a pivot table and now nobody's allowed coffee.’",
     "🗣️ From the console room: ‘Serkan, is that a pony on your jacket?’ ‘It's a cutie mark. Also, your shielding model is wrong.’",
-    "🗣️ Someone whispers: ‘Don't make eye contact with Kevin. Don't make eye contact with Kevin.’",
+    "🗣️ Overheard: ‘Kevin, are neutrinos going through my sandwich right now?’ ‘Billions. Enjoy your lunch.’",
     "🗣️ Overheard near a whiteboard: ‘...and that's why the muon thinks the hallway is shorter.’",
     "🗣️ From the north-east office: ‘Pat, does your cosmic ray model run on anything newer than Fortran 77?’ ‘Run? It strolls.’"
   ],

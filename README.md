@@ -10,35 +10,44 @@ Five reports are due, each with real work behind it:
 | Report | Work | Sign-off / approval |
 |---|---|---|
 | Weekly Report | calibrate the prototype detector (Detector Lab bench) | Nic |
-| TPS Report | rescue Katie's timesheet from the copy room | Katie W. |
+| TPS Report | rescue Katie's timesheet from the copy room | Katie |
 | Mission Dose Report | run the vehicle dose model (console room) | Kevin (wants coffee) |
-| Astronaut Dose Report | medical dose calculations, with Ramona's dosimetry | John FM (wants a blank R-13) |
+| Astronaut Dose Report | medical dose calculations, with Ramona's dosimetry | John (wants a blank R-13) |
 | Astronaut Risk Report | debrief the visiting astronaut | Eddie and Clifton's stamps |
 
 Management reviews add more approval stamps during the round. Submit
 everything at the SRAG console in the console room.
 
-Hazards: Eddie and Clifton patrol (getting caught costs sanity, and time with
-Clifton; to get a stamp, walk up and press E). Kevin is a conversational black
-hole whose gravity well pulls you in. Neil Z, a former manager, drops in from
-the elevator now and then with a pun and no point. Press E repeatedly to
-excuse yourself from either of them.
+Who to look out for: Eddie and Clifton patrol (getting caught costs sanity,
+and time with Clifton; to get a stamp, walk up and press E). Kevin loves
+physics, neutrinos most of all: step into his purple ring and he'll happily
+tell you everything about them. Neil, a former manager, drops in from the
+elevator now and then with a pun and a story. Press E repeatedly to excuse
+yourself from either of them.
 
-Helpers (blue "?" bubble): Ryan R (IT, freezes management if you file a memo
+Helpers (blue "?" bubble): Ryan (IT, freezes management if you file a memo
 as a ticket; bother him three times in a row and he walks you to his
-whiteboard for a physics problem), Janet (flare warnings), Jennifer M and Mark L (console room:
-faster vehicle run, remote access), Serkan G (hands over half the vehicle run
-from his cosmic ray model), Steve J (faster approvals), Amir B (Jeopardy for
-sanity) and Mark S (talks a manager down once). Pat O has a galactic cosmic
-ray model and is no help at all, just nostalgic physics puns. Every office has
-its three occupants, and two "For the children" posters are up on the floor
-(their walls are listed under `posters` in `office.json`).
+whiteboard for a physics problem), Janet (flare warnings), Jennifer and Mark
+in the console room (faster vehicle run, remote access), Serkan (hands over
+half the vehicle run from his cosmic ray model), Steve (faster approvals),
+Amir (Jeopardy for sanity, hosted with Kansas charm) and Mark the people
+person (talks a manager down once). Pat has a galactic cosmic ray model and a
+nostalgic physics pun for every occasion. Characters go by first name only;
+the two Marks are told apart by their titles.
+
+Every office has its three occupants, and nobody sits still all day: people
+get up for coffee, the copier, the console room, the Detector Lab or a word
+with someone down the hall, then go back to their desk. Nobody walks off
+while you're talking to them or standing beside them. On the map, an empty
+ring marks a named coworker's desk while they're away. Two "For the children"
+posters are up on the floor (their walls are listed under `posters` in
+`office.json`).
 
 The background music is a medley of genre versions of the Nyan Cat theme
 (`audio/nyancat-medley.m4a`, cut from `NyanCat.m4a` by
 `node tools/process-music.mjs`). It jumps to a different version when a
 manager starts chasing you or a solar flare hits, speeds up near the deadline,
-and slows down inside Kevin's gravity well. Music has its own on/off setting.
+and slows down while Kevin is telling you about neutrinos. Music has its own on/off setting.
 
 It is a static web page with no build step and no dependencies.
 

@@ -220,10 +220,12 @@ console.log('3. Random-input fuzzing');
 // --------------------------------------------- 4. activities and people --
 console.log('4. Activities and coworkers');
 {
-  const fresh = () => {
+  const fresh = ({ errands = false } = {}) => {
     const g = createGame({ office, encounters, seed: 11 });
-    // Park both managers in a far office so they don't interfere.
+    // Park both managers in a far office so they don't interfere, and keep
+    // everyone at their desk unless the test is about errands.
     g.bosses.forEach((b) => Object.assign(b, { x: 25.5, y: 21.5, satisfied: 999 }));
+    if (!errands) g.npcs.forEach((n) => { if (n.home) n.errandTimer = Infinity; });
     return g;
   };
   const standAt = (g, o) => {
@@ -234,6 +236,7 @@ console.log('4. Activities and coworkers');
   const press = (g, input = { interact: true }) => updateGame(g, input, DT);
   const run = (g, seconds, input = {}) => { for (let i = 0; i < seconds * 60; i++) updateGame(g, typeof input === 'function' ? input() : input, DT); };
   const npc = (g, name) => g.npcs.find((n) => n.name === name);
+  const byPerk = (g, perk) => g.npcs.find((n) => n.perk === perk);
   const station = (g, type) => g.stations.find((s) => s.type === type);
 
   // Detector calibration.
@@ -247,7 +250,7 @@ console.log('4. Activities and coworkers');
   });
   expect(taskReport(g, 'detector').task.done, 'three hits in the green band calibrate the detector');
 
-  // Vehicle dose run: Serkan's model, Jennifer's priority queue, Mark L's remote access.
+  // Vehicle dose run: Serkan's model, Jennifer's priority queue, Mark's remote access.
   g = fresh();
   standAt(g, station(g, 'vehicle_sim'));
   press(g);
@@ -259,12 +262,12 @@ console.log('4. Activities and coworkers');
   const before = vt.progress;
   run(g, 3);
   expect(vt.progress === before, 'run pauses when you walk away');
-  standAt(g, npc(g, 'Serkan G'));
+  standAt(g, npc(g, 'Serkan'));
   press(g);
-  expect(vt.progress >= before + 0.5 - 1e-9, `Serkan G hands over half the run (${(vt.progress * 100).toFixed(0)}%)`);
-  standAt(g, npc(g, 'Mark L'));
+  expect(vt.progress >= before + 0.5 - 1e-9, `Serkan hands over half the run (${(vt.progress * 100).toFixed(0)}%)`);
+  standAt(g, byPerk(g, 'remote_access'));
   press(g);
-  standAt(g, npc(g, 'Jennifer M'));
+  standAt(g, npc(g, 'Jennifer'));
   press(g);
   g.player.x = 9.5; g.player.y = 16.5;
   run(g, 4);
@@ -316,27 +319,27 @@ console.log('4. Activities and coworkers');
   // Ryan helps, but bother him three times in a row and he walks you to his
   // whiteboard for a physics problem.
   g = fresh();
-  const ryan = npc(g, 'Ryan R');
+  const ryan = npc(g, 'Ryan');
   Object.assign(ryan, { x: 10.5, y: 12.5 });
   Object.assign(g.player, { x: 10.5, y: 15.5, a: -Math.PI / 2 });
   run(g, 4);
-  expect(!g.chat, 'Ryan R does not come after you');
+  expect(!g.chat, 'Ryan does not come after you');
   for (let i = 0; i < 3 && !g.chat; i++) { standAt(g, ryan); press(g); run(g, 0.3); g.dialog = null; }
-  expect(g.chat?.kind === 'physics', 'the third quick conversation with Ryan R turns into a physics problem');
+  expect(g.chat?.kind === 'physics', 'the third quick conversation with Ryan turns into a physics problem');
   run(g, 9);
   expect(near(g.player, ryan.physics.home) < 2.5, `you end up at his whiteboard (${near(g.player, ryan.physics.home).toFixed(1)} tiles away)`);
 
   // Neil drops in, delivers a pun, and leaves.
   g = fresh();
-  const neil = npc(g, 'Neil Z');
+  const neil = npc(g, 'Neil');
   neil.dropIn.timer = 0.01;
   run(g, 0.1);
-  expect(neil.present && neil.seeking, 'Neil Z steps off the elevator');
+  expect(neil.present && neil.seeking, 'Neil steps off the elevator');
   Object.assign(g.player, { x: neil.x + 1.0, y: neil.y, a: Math.PI });
   run(g, 0.5);
-  expect(g.chat?.kind === 'dropin', 'Neil Z finds you and starts talking');
+  expect(g.chat?.kind === 'dropin', 'Neil finds you and starts talking');
   run(g, 15);
-  expect(!neil.present, 'then he leaves without making a point');
+  expect(!neil.present, 'then he heads back to the elevator');
 
   // Submitting at the SRAG console.
   g = fresh();
@@ -350,16 +353,87 @@ console.log('4. Activities and coworkers');
   // Earlier helpers still work.
   g = fresh();
   g.player.memos = 2;
-  standAt(g, npc(g, 'Ryan R'));
-  Object.assign(npc(g, 'Ryan R'), { chatCd: 99 });
+  standAt(g, npc(g, 'Ryan'));
+  Object.assign(npc(g, 'Ryan'), { chatCd: 99 });
   press(g);
-  expect(g.bosses.every((b) => b.stun > 10 && b.stunKind === 'update'), 'Ryan R: a memo ticket freezes management');
+  expect(g.bosses.every((b) => b.stun > 10 && b.stunKind === 'update'), 'Ryan: a memo ticket freezes management');
   g = fresh();
-  standAt(g, npc(g, 'Mark S'));
+  standAt(g, byPerk(g, 'people_person'));
   press(g);
   Object.assign(g.bosses[0], { x: g.player.x + 0.3, y: g.player.y, state: 'chase', satisfied: 0, stun: 0 });
   run(g, 0.1);
-  expect(g.stats.catches === 0 && !g.perks.shield, 'Mark S talks a manager down');
+  expect(g.stats.catches === 0 && !g.perks.shield, 'Mark (people person) talks a manager down');
+  const marks = g.npcs.filter((n) => n.name === 'Mark');
+  expect(marks.length === 2 && marks[0].title !== marks[1].title, `the two Marks are told apart by title (${marks.map((n) => n.title).join(' / ')})`);
+
+  // Amir hosts with his own (Kansas) reactions.
+  g = fresh();
+  const amir = npc(g, 'Amir');
+  standAt(g, amir);
+  press(g);
+  press(g, { answer: g.quiz.answer + 1 });
+  expect(amir.quizLines.right.some((l) => g.dialog?.lines[0].endsWith(l)), `Amir reacts in his own words ("${g.dialog?.lines[0]}")`);
+  expect(!amir.look.beard, 'Amir is clean-shaven');
+
+  // Everyone with a desk gets up now and then, and comes back.
+  g = fresh({ errands: true });
+  Object.assign(g.player, { x: 19.5, y: 10.5 });
+  npc(g, 'Kevin').chatCd = Infinity;
+  const homes = g.npcs.filter((n) => n.home && n.present);
+  const left = new Set(), since = new Map();
+  let maxAway = 0, longest = 0;
+  const idx = (o) => Math.floor(o.y) * g.world.w + Math.floor(o.x);
+  for (let i = 0; i < 60 * 420; i++) {
+    updateGame(g, {}, DT);
+    if (i % 60 === 0) Object.assign(g, { crewDose: 0, timeLeft: 999 }) && (g.player.sanity = 100);
+    let away = 0;
+    for (const n of homes) {
+      if (near(n, n.home) > 1) left.add(n);
+      if (n.errand) {
+        away++;
+        if (!since.has(n)) since.set(n, g.t);
+        longest = Math.max(longest, g.t - since.get(n));
+      } else since.delete(n);
+    }
+    maxAway = Math.max(maxAway, away);
+  }
+  expect(g.status === 'playing', 'the errand run stays in play');
+  expect(left.size >= homes.length * 0.9, `people get up from their desks (${left.size} of ${homes.length} within 7 minutes)`);
+  const stayed = homes.filter((n) => !n.ambient && !left.has(n)).map((n) => n.name);
+  expect(!stayed.length, `the named cast take errands too${stayed.length ? ` (not: ${stayed.join(', ')})` : ''}`);
+  expect(maxAway <= g.errandCap, `only a few are up at once (at most ${maxAway}, cap ${g.errandCap})`);
+  expect(longest < 120, `errands are short (longest ${longest.toFixed(0)} s)`);
+  expect(homes.every((n) => (n.errand ? g.world.occupied[idx(n.home)] === 0 : near(n, n.home) < 1e-9 && g.world.occupied[idx(n.home)] === 1)),
+    "people back from an errand sit in their own seat, and an empty desk doesn't block anyone");
+
+  // Nobody walks off mid-conversation, and you can catch people on the way.
+  g = fresh({ errands: true });
+  const nic = npc(g, 'Nic');
+  g.npcs.forEach((n) => { if (n.home && n !== nic) n.errandTimer = Infinity; });
+  standAt(g, nic);
+  press(g);
+  nic.errandTimer = 0.01;
+  run(g, 2);
+  expect(g.dialog && !nic.errand, 'nobody leaves while you are talking to them');
+  g.dialog = null;
+  Object.assign(g.player, { x: 19.5, y: 10.5 });
+  run(g, 20);
+  expect(nic.errand && near(nic, nic.home) > 1, `Nic heads off on an errand (${nic.errand?.kind})`);
+  standAt(g, nic);
+  press(g);
+  const spot = { x: nic.x, y: nic.y };
+  run(g, 3);
+  expect(g.dialog?.npc === nic && near(nic, spot) < 0.05, 'catch someone on the way and they stop to talk');
+  g.dialog = null;
+  Object.assign(g.player, { x: 19.5, y: 10.5 });
+  run(g, 90);
+  expect(!nic.errand && near(nic, nic.home) < 1e-9, 'then they go back to their desk');
+  g = fresh({ errands: true });
+  const amb = g.npcs.find((n) => n.ambient && n.present);
+  Object.assign(amb, { errand: { kind: 'coffee', phase: 'there', stay: 30, x: amb.x, y: amb.y } });
+  standAt(g, amb);
+  press(g);
+  expect(g.errandLines.coffee.includes(g.dialog?.lines[0]), `coworkers mention their errand ("${g.dialog?.lines[0]}")`);
 }
 
 // ---------------------------------------------------------- 5. render --

@@ -19,6 +19,7 @@
     <div class="touch-buttons">
       <button type="button" data-action="pause" aria-label="Pause">II</button>
       <button type="button" data-action="map">Map</button>
+      <button type="button" data-action="name">Name</button>
       <button type="button" data-action="drink">Coffee</button>
       <button type="button" data-action="interact" class="big">Use</button>
       <button type="button" data-action="throw" class="big">Memo</button>
@@ -68,25 +69,41 @@
           </ol>
         </section>
         <section class="card">
-          <h2>Known hazards</h2>
+          <h2>Who to look out for</h2>
           <div class="hazard">
             <img id="portrait-eddie" src="static/sprites/eddie/eddie_1.png" alt="Eddie" width="92" height="130">
-            <div><h3>Eddie</h3><p>Forms. So many forms. Getting caught costs sanity. Also approves your reports, eventually.</p></div>
+            <div><h3>Eddie</h3><p>Keeps the paperwork in order and has a form for everything. If he catches you, there's an addendum (it costs sanity). He also approves your reports.</p></div>
           </div>
           <div class="hazard">
             <img id="portrait-clifton" src="static/sprites/clifton/clifton_1.png" alt="Clifton" width="78" height="123">
-            <div><h3>Clifton</h3><p>Timesheet audits. Getting caught costs sanity and 20 seconds. His stamp is mandatory.</p></div>
+            <div><h3>Clifton</h3><p>Always has a quick question about your timesheet. Getting caught costs sanity and 20 seconds. His stamp is mandatory.</p></div>
           </div>
           <div class="hazard">
             <canvas data-hazard="Kevin" width="84" height="100" aria-label="Kevin"></canvas>
-            <div><h3>Kevin</h3><p>A black hole of conversation. Get too close and you're pulled in. You still need his sign-off.</p></div>
+            <div><h3>Kevin</h3><p>Loves physics, and neutrinos most of all. Get close and he'll happily tell you everything about them. You still need his sign-off.</p></div>
           </div>
-          <p class="muted small">Managers only see what's in front of them: sneak behind, break line of sight, or stun them with a paper-airplane memo. Running is loud. Stuck in a conversation? Press E to excuse yourself. And Ryan R in IT will help you, just don't bother him too often.</p>
+          <p class="muted small">Managers only see what's in front of them: sneak behind, break line of sight, or stun them with a paper-airplane memo. Running is loud. Stuck in a conversation? Press E to excuse yourself. Ryan in IT will help you, just don't bother him too often. People get up for coffee and errands, so check the map if someone isn't at their desk.</p>
         </section>
       </div>
 
       <div id="difficulty" class="diffs" role="radiogroup" aria-label="Difficulty"></div>
       <button type="button" id="start" class="primary start">Clock in</button>
+
+      <details class="controls">
+        <summary>Office roster: name your coworkers (<span id="roster-count"></span>)</summary>
+        <p class="muted small">The group changes over time, so name whoever sits where. You can also press <b>N</b> in the game while facing someone. Names are saved in this browser. <b>Export</b> makes a <code>roster.json</code> for teammates to <b>Import</b>; its entries can also go into <code>static/data/office.json</code> ("coworkers") so the published game has them for everyone.</p>
+        <div class="roster-tools">
+          <button type="button" id="roster-export">Export</button>
+          <label class="button-like">Import<input type="file" id="roster-import" accept="application/json,.json" hidden></label>
+          <button type="button" id="roster-clear">Clear names</button>
+        </div>
+        <div class="roster-scroll">
+          <table class="roster">
+            <thead><tr><th>Where</th><th>Name</th><th>Role</th><th title="Seat is empty">Empty</th></tr></thead>
+            <tbody id="roster-rows"></tbody>
+          </table>
+        </div>
+      </details>
 
       <details class="controls">
         <summary>Controls &amp; settings</summary>
@@ -97,6 +114,7 @@
             <tr><th>Sprint</th><td>Shift (noisy, uses stamina)</td></tr>
             <tr><th>Talk / use / ask for a stamp</th><td>E or Enter (also: excuse yourself, tap the detector gauge)</td></tr>
             <tr><th>Answer a question</th><td>1, 2, 3</td></tr>
+            <tr><th>Name a coworker</th><td>N (while facing them)</td></tr>
             <tr><th>Throw memo</th><td>Space or click</td></tr>
             <tr><th>Drink coffee</th><td>C</td></tr>
             <tr><th>Map</th><td>M or Tab</td></tr>
@@ -119,6 +137,21 @@
       </div>
       <div id="pause-settings-slot"></div>
     </div>
+  </section>
+
+  <section id="name-dialog" class="overlay" hidden>
+    <form class="panel narrow" id="name-form" autocomplete="off">
+      <h2>Who sits here?</h2>
+      <p class="muted" id="name-seat"></p>
+      <label class="field">Name <input id="name-input" maxlength="24" placeholder="e.g. Alex"></label>
+      <label class="field">Role <input id="title-input" maxlength="32" placeholder="e.g. Dose analyst"></label>
+      <label class="check"><input type="checkbox" id="vacant-input"> This seat is empty now</label>
+      <div class="buttons">
+        <button type="submit" class="primary">Save</button>
+        <button type="button" id="name-cancel">Cancel</button>
+      </div>
+      <p class="muted small">Saved in this browser. The title screen's Office roster can export it for everyone.</p>
+    </form>
   </section>
 
   <section id="end" class="overlay" hidden>

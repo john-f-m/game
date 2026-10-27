@@ -2,7 +2,7 @@
 // the outside world needs to react to (sounds, screen shake) is pushed onto
 // game.events and drained by the caller each frame.
 
-import { World, T } from './world.js';
+import { World, T, ZONES } from './world.js';
 
 export const DIFFICULTY = {
   intern: {
@@ -91,7 +91,16 @@ const DEFAULT_BOSS_LINES = {
 const DEFAULT_AMBIENT = {
   titles: ['Dose analyst', 'Health physicist', 'Space weather forecaster', 'Software engineer', 'Data analyst'],
   lines: ['Busy. Dose numbers are due today.', 'Have you seen the stapler?', 'Is it Friday yet?'],
+  // What people say when you catch them away from their desk.
+  errands: {
+    coffee: ['Coffee run. Back in a minute.'], copy: ['Printing. Fingers crossed.'], console: ['Checking on a run in the console room.'],
+    lab: ['Just borrowing a detector.'], visit: ['Just catching up with someone.'], stroll: ['Stretching my legs.'],
+  },
 };
+
+// Everyone with a desk gets up now and then. Weights for where they go.
+const ERRANDS = [['coffee', 0.32], ['visit', 0.24], ['stroll', 0.14], ['copy', 0.12], ['console', 0.1], ['lab', 0.08]];
+const SPOT_ZONES = { [ZONES.k]: 'coffee', [ZONES.p]: 'copy', [ZONES.i]: 'console', [ZONES.l]: 'lab', [ZONES.c]: 'stroll' };
 
 const DECOR_RADIUS = { plant: 0.28, cooler: 0.25, printer: 0.34, trash: 0.2, console: 0.36 };
 const FACING = { east: 0, south: Math.PI / 2, west: Math.PI, north: -Math.PI / 2 };
@@ -145,7 +154,33 @@ export function ambientLook(i) {
   };
 }
 
-export function createGame({ office, encounters, difficulty = 'analyst', seed = Date.now(), warn = () => {} }) {
+export const seatKey = (x, y) => `${x},${y}`;
+
+// Where a seat is, in words: "North office 3 (with Ramona)", "Console room".
+export function describeSeat(g, n) {
+  const w = g.world, at = n.home || n, roomOf = (o) => w.rooms[Math.floor(o.y) * w.w + Math.floor(o.x)];
+  const room = roomOf(at);
+  if (room < 0) return 'Open plan';
+  const info = w.roomInfo[room];
+  const ROOM_NAMES = { [ZONES.l]: 'Detector Lab', [ZONES.i]: 'Console room', [ZONES.p]: 'Copy room', [ZONES.k]: 'Break room' };
+  const label = ROOM_NAMES[info.zone] || `${info.side} office ${info.num}`;
+  const named = g.npcs.filter((m) => !m.ambient && m.present && m.home && roomOf(m.home) === room).map((m) => m.name);
+  return named.length ? `${label} (with ${joinNames(named)})` : label;
+}
+
+// Renaming (or emptying) a seat during a round.
+export function setSeat(g, n, { name = '', title = '', vacant = false }) {
+  const w = g.world, home = n.home || n, idx = Math.floor(home.y) * w.w + Math.floor(home.x);
+  n.name = name || 'Coworker';
+  n.custom = !!name;
+  if (title) n.title = title;
+  n.present = !vacant;
+  if (vacant && n.errand) Object.assign(n, { x: home.x, y: home.y, errand: null, path: null });
+  w.occupied[idx] = vacant || n.errand ? 0 : 1;
+  if (vacant && g.dialog && g.dialog.npc === n) g.dialog = null;
+}
+
+export function createGame({ office, encounters, difficulty = 'analyst', seed = Date.now(), warn = () => {}, roster = {} }) {
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.analyst;
   const rng = mulberry32(seed);
   const world = new World(office.map, warn);
@@ -197,7 +232,8 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
       signLine: n.sign || "Sure, I'll sign off.",
       perk, perkLine: n.perk_line || '', quiz, quizIdx: quiz.length ? Math.floor(rng() * quiz.length) : 0,
       gives: ITEMS[n.gives] ? n.gives : null, giveLine: n.give_line || '', gave: false,
-      blackHole: n.black_hole ? { radius: Number(n.black_hole.radius) || 3.2, lines: n.black_hole.lines || n.lines } : null,
+      quizLines: { right: n.quiz_right, wrong: n.quiz_wrong, late: n.quiz_late },
+      blackHole: n.black_hole ? { radius: Number(n.black_hole.radius) || 3.2, topic: n.black_hole.topic || 'physics', lines: n.black_hole.lines || n.lines } : null,
       physics: n.physics ? { home: center(place(n.physics.home || n.patrol?.[0] || [x, y], `encounters.json ${name} home`)), lines: n.physics.lines || n.lines } : null,
       debrief: Array.isArray(n.debrief) && n.debrief.length ? n.debrief : null,
       dropIn: drops ? {
@@ -211,20 +247,47 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
     return npc;
   });
 
+  // The office seats (office.json "coworkers"). Who sits there can be set in
+  // the file ("name", "title", "vacant") and overridden per browser by the
+  // player's roster, keyed by seat ("x,y"). Every seat gets an NPC, even an
+  // empty one, so sprite indices stay stable when people come and go.
   const amb = { ...DEFAULT_AMBIENT, ...(encounters.ambient || {}) };
   const ambient = (office.coworkers || []).map((c, j) => {
-    const at = Array.isArray(c) ? c : c.at;
-    const [x, y] = place(at, `office.json coworker #${j}`);
-    world.occupied[y * world.w + x] = 1;
-    const idx = named.length + j;
-    const npc = baseNpc(idx, 'Coworker', x, y, ambientLook(j));
+    const base = Array.isArray(c) ? {} : c;
+    const [x, y] = place(Array.isArray(c) ? c : c.at, `office.json coworker #${j}`);
+    const seat = seatKey(x, y);
+    const mine = roster[seat] || {};
+    const vacant = mine.vacant ?? !!base.vacant;
+    if (!vacant) world.occupied[y * world.w + x] = 1;
+    const name = mine.name || base.name || '';
+    const npc = baseNpc(named.length + j, name || 'Coworker', x, y, ambientLook(j));
     const lr = mulberry32(500 + j * 13);
-    npc.ambient = true;
-    npc.title = (!Array.isArray(c) && c.title) || amb.titles[Math.floor(lr() * amb.titles.length)];
-    npc.lines = [0, 1].map(() => amb.lines[Math.floor(lr() * amb.lines.length)]);
+    Object.assign(npc, {
+      ambient: true, seat, custom: !!name, present: !vacant,
+      title: mine.title || base.title || amb.titles[Math.floor(lr() * amb.titles.length)],
+      lines: [0, 1].map(() => amb.lines[Math.floor(lr() * amb.lines.length)]),
+    });
     return npc;
   });
   const npcs = [...named, ...ambient];
+
+  // Desks, and the spots people walk to on their errands (see updateErrand).
+  const seats = new Set();
+  for (const n of npcs) {
+    if (n.patrol || n.dropIn) continue;
+    Object.assign(n, { home: { x: n.x, y: n.y }, seatA: n.a, errand: null, errandTimer: 20 + rng() * 140 });
+    seats.add(seatKey(Math.floor(n.x), Math.floor(n.y)));
+  }
+  const spots = Object.fromEntries(ERRANDS.map(([kind]) => [kind, []]));
+  for (let y = 0; y < world.h; y++) {
+    for (let x = 0; x < world.w; x++) {
+      const kind = SPOT_ZONES[world.zones[y * world.w + x]];
+      // Not in front of a work station, or E would talk to them instead.
+      if (!kind || !world.walkable(x, y) || seats.has(seatKey(x, y))) continue;
+      if (stations.some((s) => Math.hypot(s.x - x - 0.5, s.y - y - 0.5) < 1.6)) continue;
+      spots[kind].push({ x: x + 0.5, y: y + 0.5 });
+    }
+  }
 
   const items = (office.items || []).filter((it) => ITEMS[it.type]).map((it, i) => {
     const [x, y] = place(it.at, `office.json item #${i} (${it.type})`);
@@ -285,6 +348,8 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
       stamps: 0, reviews: 0, perks: 0, quizRight: 0, quizWrong: 0, tasks: 0, trapped: 0,
     },
     noMemoNagged: 0, mapName: office.name || '',
+    seats, spots, errandLines: amb.errands || DEFAULT_AMBIENT.errands,
+    errandCap: Math.max(2, Math.round(npcs.filter((n) => n.home && n.present).length * 0.15)),
   };
   markExplored(g, 2.5);
   toast(g, `DEADLINE: the Flight Director needs your dose assessment in ${formatClock(g.timeLeft)}.`, 'warn', 7);
@@ -455,10 +520,11 @@ export function updateGame(g, input, dt) {
   }
 }
 
-// People who walk around (the astronaut, Ryan, Neil) don't block you:
-// otherwise you and they can deadlock in a doorway, each waiting politely.
+// People on the move (the astronaut, Ryan, Neil, anyone on an errand) don't
+// block you: otherwise you and they can deadlock in a doorway, each waiting
+// politely.
 function solids(g) {
-  return [...g.npcs.filter((n) => n.present && !n.patrol && !n.dropIn), ...g.decor, ...g.stations];
+  return [...g.npcs.filter((n) => n.present && !n.patrol && !n.dropIn && !n.errand), ...g.decor, ...g.stations];
 }
 
 function movePlayer(g, input, dt) {
@@ -574,6 +640,10 @@ function promptFor(g, target) {
     return `E: Ask ${target.boss.name} to approve the ${list[0].name}${list.length > 1 ? ` (+${list.length - 1} more)` : ''}`;
   }
   const n = target.npc;
+  if (n.ambient) {
+    const who = n.custom ? n.name : 'a coworker';
+    return `E: Talk to ${who}${n.title ? ` (${n.title})` : ''} · N: ${n.custom ? 'rename' : 'name them'}`;
+  }
   const label = n.title ? `${n.name} (${n.title})` : n.name;
   const signing = n.report && !n.signed;
   if (!signing && n.perk === 'jeopardy' && n.cooldown <= 0) return `E: Play Jeopardy with ${n.name}`;
@@ -610,7 +680,8 @@ function talk(g, n) {
       return;
     }
   }
-  const out = [stripSpeaker(n.lines[n.talkCount % n.lines.length])];
+  const aside = n.ambient && n.errand ? g.errandLines[n.errand.kind] : null;
+  const out = [stripSpeaker(aside?.length ? aside[n.talkCount % aside.length] : n.lines[n.talkCount % n.lines.length])];
   n.talkCount++;
   n.met = true;
   if (n.dropIn) {
@@ -920,18 +991,25 @@ function answerQuiz(g, idx) {
   p.lock = 0;
   p.lockKind = '';
   n.cooldown = QUIZ_COOLDOWN;
+  // The host's own reactions (encounters.json quiz_right / quiz_wrong / quiz_late).
+  const react = (kind, fallback) => {
+    const list = n.quizLines?.[kind];
+    return Array.isArray(list) && list.length ? list[n.quizIdx % list.length] : fallback;
+  };
   let lines;
   if (idx === q.answer) {
     p.sanity = Math.min(PLAYER.sanity, p.sanity + 20);
     g.stats.quizRight++;
-    lines = [`"${q.choices[q.answer]}" Correct! You're on fire.`];
-    toast(g, `${n.name}: Correct! +20 sanity`, 'good', 4);
+    const line = react('right', "Correct! You're on fire.");
+    lines = [`"${q.choices[q.answer]}" ${line}`];
+    toast(g, `${n.name}: ${line} +20 sanity`, 'good', 4);
     sfx(g, 'sign');
   } else {
     p.sanity -= 5;
     g.stats.quizWrong++;
-    lines = [idx < 0 ? "Time's up!" : 'Ooh, sorry.', `The correct response was "${q.choices[q.answer]}"`];
-    toast(g, `${n.name}: ${idx < 0 ? "Time's up" : 'Ooh, sorry'}. -5 sanity`, 'warn', 4);
+    const line = idx < 0 ? react('late', "Time's up!") : react('wrong', 'Ooh, sorry.');
+    lines = [line, `The correct response was "${q.choices[q.answer]}"`];
+    toast(g, `${n.name}: ${line} -5 sanity`, 'warn', 4);
     sfx(g, 'deny');
   }
   g.dialog = { name: n.name, title: n.title, lines, ttl: 6, npc: n };
@@ -959,7 +1037,7 @@ function trapInChat(g, n, kind, after) {
     startChat(g, n, {
       kind, lines: shuffled(g, n.blackHole.lines), duration: 5.5,
       onDone: () => {
-        toast(g, `You escaped ${n.name}'s gravity well.`, 'info', 3);
+        toast(g, `You thank ${n.name} for the ${n.blackHole.topic} and slip away.`, 'info', 3);
         if (after) after();
       },
     });
@@ -1045,11 +1123,18 @@ function checkTraps(g) {
 
 // ------------------------------------------------- moving coworkers --
 // The visiting astronaut and Ryan walk patrol loops; Neil drops in from the
-// elevator.
+// elevator; everyone else leaves their desk on an errand now and then.
 
 function updateCoworkers(g, dt) {
   const p = g.player;
   for (const n of g.npcs) {
+    if (n.home) {
+      if (!n.present) continue;
+      n.moving = false;
+      if (!(g.chat && g.chat.npc === n)) updateErrand(g, n, dt);
+      turnNpc(n, dt);
+      continue;
+    }
     if (!n.patrol && !n.dropIn) continue;
     n.moving = false;
     if (g.chat && g.chat.npc === n) { turnNpc(n, dt); continue; }
@@ -1071,6 +1156,81 @@ function updateCoworkers(g, dt) {
     }
     turnNpc(n, dt);
   }
+}
+
+// A coffee run, the printer, a word with someone in another office. Nobody
+// leaves while you're talking to them or standing right there, and a few
+// people at most are up at once.
+function updateErrand(g, n, dt) {
+  const e = n.errand, p = g.player, w = g.world;
+  const seat = Math.floor(n.home.y) * w.w + Math.floor(n.home.x);
+  // Talking to them (or looking right at them, for a few seconds) holds them.
+  n.held = g.target && g.target.npc === n ? (n.held || 0) + dt : 0;
+  const engaged = (g.dialog && g.dialog.npc === n) || (g.quiz && g.quiz.npc === n) || (n.held > 0 && n.held < 3);
+  const facePlayer = () => { n.turnTo = Math.atan2(p.y - n.y, p.x - n.x); };
+  if (!e) {
+    if ((n.errandTimer -= dt) > 0) return;
+    n.errandTimer = 5 + g.rng() * 10; // not now: try again shortly
+    if (engaged || dist(n, p) < 3 || g.npcs.filter((m) => m.errand).length >= g.errandCap) return;
+    const dest = pickErrand(g, n);
+    if (!dest) return;
+    n.errand = { ...dest, phase: 'out', stay: 8 + g.rng() * 10, left: g.t };
+    n.path = null;
+    w.occupied[seat] = 0;
+    return;
+  }
+  if (engaged) { facePlayer(); return; } // stops to chat
+  if (e.phase !== 'back' && g.t - e.left > 100) { e.phase = 'back'; n.path = null; } // long enough
+  if (e.phase === 'out') {
+    followPath(g, n, e, 1.35, dt);
+    if (n.pathFailed) { e.phase = 'back'; n.path = null; }
+    else if (dist(n, e) < 0.1) {
+      e.phase = 'there';
+      if (e.face) n.turnTo = Math.atan2(e.face.y - n.y, e.face.x - n.x);
+    }
+  } else if (e.phase === 'there') {
+    if ((e.stay -= dt) <= 0) { e.phase = 'back'; n.path = null; }
+  } else if (dist(n, n.home) > 0.08 && !n.pathFailed) {
+    followPath(g, n, n.home, 1.35, dt);
+  } else if (dist(p, n.home) > PLAYER.radius + n.radius) { // sit down once you're out of the chair
+    Object.assign(n, { x: n.home.x, y: n.home.y, errand: null, path: null, pathFailed: false, turnTo: n.seatA, errandTimer: 70 + g.rng() * 110 });
+    w.occupied[seat] = 1;
+  }
+}
+
+function pickErrand(g, n) {
+  const w = g.world, roomOf = (o) => w.rooms[Math.floor(o.y) * w.w + Math.floor(o.x)];
+  // Of three random candidates, the nearest: people don't cross the whole
+  // floor for coffee when there's a closer option.
+  const pick = (list) => {
+    let best = null;
+    for (let i = 0; i < 3 && list.length; i++) {
+      const c = list[Math.floor(g.rng() * list.length)], o = Array.isArray(c) ? { x: c[0] + 0.5, y: c[1] + 0.5 } : c;
+      if (!best || dist(n, o) < dist(n, best.o)) best = { c, o };
+    }
+    return best && best.c;
+  };
+  let r = g.rng();
+  let kind = (ERRANDS.find(([, weight]) => (r -= weight) < 0) || ERRANDS[0])[0];
+  if (kind === 'visit') {
+    // Stand beside someone at their desk in another room and catch up.
+    const host = pick(g.npcs.filter((m) => m !== n && m.home && m.present && !m.errand && (roomOf(m) < 0 || roomOf(m) !== roomOf(n))));
+    const spot = host && pick([[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .map(([dx, dy]) => [Math.floor(host.x) + dx, Math.floor(host.y) + dy])
+      .filter(([x, y]) => w.walkable(x, y) && !g.seats.has(seatKey(x, y))));
+    if (spot) return { kind, x: spot[0] + 0.5, y: spot[1] + 0.5, face: { x: host.x, y: host.y } };
+    kind = 'coffee';
+  }
+  // Somewhere other than their own room: the console crew get coffee
+  // instead, and whoever sits in the break room goes for a walk.
+  let list = [];
+  for (const k of [kind, 'coffee', 'stroll']) {
+    list = g.spots[k].filter((s) => roomOf(s) < 0 || roomOf(s) !== roomOf(n));
+    kind = k;
+    if (list.length) break;
+  }
+  const spot = pick(list);
+  return spot ? { kind, x: spot.x, y: spot.y, face: null } : null;
 }
 
 function updateDropIn(g, n, dt) {
@@ -1100,7 +1260,7 @@ function updateDropIn(g, n, dt) {
     if (n.seekTime <= 0) {
       n.seeking = false;
       n.leaving = true;
-      toast(g, `${n.name} wanders back to the elevator. Nobody ever finds out why he came.`, 'npc', 4);
+      toast(g, `${n.name} heads back to the elevator with a wave. Nice of him to stop by.`, 'npc', 4);
     } else if (p.lock <= 0) {
       followPath(g, n, { x: p.x, y: p.y }, 2.1, dt);
     }
@@ -1181,7 +1341,7 @@ function updateProjectiles(g, dt) {
       if (pr.dead) break;
       for (const n of g.npcs) {
         if (n.present && Math.hypot(n.x - pr.x, n.y - pr.y) < 0.33) {
-          toast(g, `${n.ambient ? 'A coworker' : n.name}: Hey! I'm working here.`, 'info', 3);
+          toast(g, `${n.ambient && !n.custom ? 'A coworker' : n.name}: Hey! I'm working here.`, 'info', 3);
           sfx(g, 'land');
           pr.dead = true;
           break;
@@ -1465,7 +1625,7 @@ function updateReviews(g, dt) {
 function catchPlayer(g, b) {
   if (g.chat) { g.chat = null; g.player.lock = 0; }
   if (g.perks.shield) {
-    // Mark S steps in and talks them down; costs you nothing.
+    // Mark, the people person, steps in and talks them down; costs you nothing.
     g.perks.shield = false;
     b.satisfied = 12;
     b.alert = 0;

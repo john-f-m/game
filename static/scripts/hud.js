@@ -88,6 +88,8 @@ export function drawHud(ctx, g, o) {
   vignette(ctx, w, h, 'rgba(70, 20, 120, 1)', (g.gravity || 0) * 0.9);
   vignette(ctx, w, h, 'rgba(255, 0, 0, 1)', p.hurt * 1.2);
 
+  if (o.project) drawNameTags(ctx, g, o);
+
   // --- crosshair, detection, prompt
   const cx = w / 2, cy = h / 2;
   ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -115,7 +117,7 @@ export function drawHud(ctx, g, o) {
   if (p.lock <= 0) {
     const kevin = g.npcs.find((n) => n.blackHole && n.present && n.chatCd <= 0 && Math.hypot(n.x - p.x, n.y - p.y) < n.blackHole.radius);
     const neil = g.npcs.find((n) => n.dropIn && n.present && n.seeking);
-    const warn = kevin ? [`${kevin.name.toUpperCase()}'S GRAVITY WELL: walk away!`, '#c9a6ff']
+    const warn = kevin ? [`${kevin.name} would love to tell you about ${kevin.blackHole.topic}. Keep walking!`, '#c9a6ff']
       : neil ? [`${neil.name} is on the floor, looking for someone to talk to`, '#ffc68a'] : null;
     if (warn) {
       ctx.font = font(14 * u, 800);
@@ -167,6 +169,30 @@ export function drawHud(ctx, g, o) {
     ctx.fillText(`${o.fps.toFixed(0)} fps`, w - m, h - m - 120 * u);
   }
   ctx.restore();
+}
+
+// Name tags over the heads of named people within a few steps (and in view).
+function drawNameTags(ctx, g, o) {
+  const { u } = o;
+  const p = g.player;
+  ctx.textAlign = 'center';
+  for (const n of g.npcs) {
+    if (!n.present || (n.ambient && !n.custom)) continue;
+    const d = Math.hypot(n.x - p.x, n.y - p.y);
+    if (d > 5) continue;
+    const s = o.project(n.x, n.y, 0.95);
+    if (!s) continue;
+    const size = Math.max(10, Math.min(16, 26 / s.depth)) * u;
+    ctx.font = font(size, 700);
+    const tw = ctx.measureText(n.name).width;
+    ctx.globalAlpha = Math.min(1, (5 - d) / 1.5);
+    roundRect(ctx, s.x - tw / 2 - 6 * u, s.y - size - 4 * u, tw + 12 * u, size + 8 * u, 5 * u);
+    ctx.fillStyle = 'rgba(8, 12, 24, 0.65)';
+    ctx.fill();
+    ctx.fillStyle = n.ambient ? '#e8eef7' : '#ffd166';
+    ctx.fillText(n.name, s.x, s.y);
+  }
+  ctx.globalAlpha = 1;
 }
 
 // One or two lines per report: name, then what it is still waiting on.
@@ -512,7 +538,7 @@ function drawChat(ctx, g, o) {
   const c = g.chat, p = g.player, n = c.npc;
   const bw = Math.min(600 * u, w - 40 * u);
   const titles = {
-    blackhole: `${n.name.toUpperCase()}'S GRAVITY WELL`, physics: `${n.name.toUpperCase()} HAS A PHYSICS PROBLEM`,
+    blackhole: `${n.name.toUpperCase()} IS TALKING ${n.blackHole.topic.toUpperCase()}`, physics: `${n.name.toUpperCase()} HAS A PHYSICS PROBLEM`,
     dropin: `${n.name.toUpperCase()} DROPPED IN`, debrief: 'ASTRONAUT DEBRIEF',
   };
   const accent = c.kind === 'blackhole' ? '#c9a6ff' : c.kind === 'debrief' ? '#7fd6ff' : '#ffc68a';
@@ -612,7 +638,22 @@ export function drawMinimap(ctx, g, x0, y0, maxW, maxH, u, time, full) {
   }
   for (const n of g.npcs) {
     if (!n.present) continue;
-    const roams = n.patrol || n.dropIn;
+    // Named people away from their desk: an empty ring where they sit.
+    if (n.errand && !n.ambient && seen(n.home.x, n.home.y)) {
+      const [hx, hy] = at(n.home.x, n.home.y);
+      ctx.beginPath();
+      ctx.arc(hx, hy, ts * 0.32, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(200, 210, 225, 0.5)';
+      ctx.lineWidth = 1.5 * u;
+      ctx.stroke();
+      if (full && !inSight(n)) {
+        ctx.font = font(10.5 * u, 600);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(232, 238, 247, 0.6)';
+        ctx.fillText(`${n.name} (away)`, hx, hy - ts * 0.6);
+      }
+    }
+    const roams = n.patrol || n.dropIn || n.errand;
     if (roams ? !inSight(n) : !seen(n.x, n.y)) continue;
     const [sx, sy] = at(n.x, n.y);
     if (n.blackHole && n.chatCd <= 0) {
@@ -630,6 +671,12 @@ export function drawMinimap(ctx, g, x0, y0, maxW, maxH, u, time, full) {
           : n.dropIn ? '#ffc68a'
             : helps ? '#6fb7ff' : '#7f8da3';
     ctx.fill();
+    if (full && (!n.ambient || n.custom)) {
+      ctx.font = font(10.5 * u, 600);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(232, 238, 247, 0.85)';
+      ctx.fillText(n.name, sx, sy - ts * 0.6);
+    }
   }
   for (const b of g.bosses) {
     if (!bossVisible(g, b)) continue;
@@ -689,6 +736,6 @@ function drawBigMap(ctx, g, o) {
   drawMinimap(ctx, g, x0, y0, mw, maxH, u, time, true);
   ctx.font = font(13 * u, 600);
   ctx.fillStyle = '#9fb0c8';
-  const legend = '● yellow: sign-off needed   ● green: signed off   ● blue: can help   ● purple: Kevin (keep out of the ring)   ■ orange: work station   ■ green: SRAG console   red ring: manager whose stamp you need   cones: what managers can see   (M to close)';
+  const legend = '● yellow: sign-off needed   ● green: signed off   ● blue: can help   ● purple: Kevin (inside the ring, he starts talking)   ○ empty ring: away from their desk   ■ orange: work station   ■ green: SRAG console   red ring: manager whose stamp you need   cones: what managers can see   (M to close)';
   wrap(ctx, legend, w - 60 * u).forEach((l, i) => ctx.fillText(l, w / 2, y0 + g.world.h * ts + (30 + i * 18) * u));
 }

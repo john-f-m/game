@@ -1,7 +1,7 @@
 // Entry point: loads data and sprites, runs the menus and the game loop.
 // Game rules live in game.js, drawing in raycaster.js / hud.js.
 
-import { createGame, updateGame, DIFFICULTY, formatClock, readyCount } from './game.js';
+import { createGame, updateGame, DIFFICULTY, formatClock, readyCount, describeSeat, setSeat, seatKey } from './game.js';
 import { buildTextures } from './textures.js';
 import { Raycaster } from './raycaster.js';
 import { drawHud } from './hud.js';
@@ -53,6 +53,8 @@ function writeStore(key, value) {
 
 const settings = readStore('ccc.settings', DEFAULT_SETTINGS);
 const best = readStore('ccc.best', {});
+// Who sits where, as named by the player: { "x,y": { name, title, vacant } }.
+const roster = readStore('ccc.roster', {});
 
 // --------------------------------------------------------------- loading --
 
@@ -119,7 +121,7 @@ async function boot() {
     sound.setMusic(office.music);
     // The demo round behind the title screen also tells us everyone's look,
     // including the unnamed coworkers, so sprites can be built for all.
-    demo = createGame({ office, encounters, seed: 7, warn: (m) => console.warn(m) });
+    demo = createGame({ office, encounters, seed: 7, warn: (m) => console.warn(m), roster });
     demo.player.x = 15.5;
     demo.player.y = 5.5;
     let poster = null;
@@ -138,6 +140,7 @@ async function boot() {
     }
     applySettings();
     setupTitle();
+    buildRosterEditor();
     showScreen(ui.title);
     state = 'title';
   } catch (err) {
@@ -198,7 +201,7 @@ function setupTitle() {
   }
 }
 
-// Title-screen portraits for the coworker hazards (Kevin, Ryan), drawn from
+// Title-screen portraits for coworkers without a sprite sheet (Kevin), drawn from
 // their in-game sprites into <canvas data-hazard="Name"> elements.
 function drawHazardPortraits(textures, game) {
   document.querySelectorAll('canvas[data-hazard]').forEach((c) => {
@@ -253,7 +256,7 @@ function startGame(difficulty) {
   sound.unlock();
   game = createGame({
     office: data.office, encounters: data.encounters, difficulty,
-    seed: (Math.random() * 2 ** 31) | 0, warn: (m) => console.warn(m),
+    seed: (Math.random() * 2 ** 31) | 0, warn: (m) => console.warn(m), roster,
   });
   game.mapName = data.office.name;
   showMap = false;
@@ -295,8 +298,140 @@ function quitToTitle() {
   input.releaseLock();
   ui.touch.hidden = true;
   setupTitle();
+  buildRosterEditor();
   showScreen(ui.title);
 }
+
+// ---------------------------------------------------------------- roster --
+// Players name the unnamed coworkers (the group changes over time): press N
+// while facing one, or fill in the roster on the title screen. Saved in this
+// browser; Export / Import share it, and the exported entries can be pasted
+// into office.json "coworkers" to give everyone the same names.
+
+function saveSeat(seat, { name, title, vacant }) {
+  const entry = {};
+  if (name) entry.name = name;
+  if (title) entry.title = title;
+  if (vacant) entry.vacant = true;
+  if (Object.keys(entry).length) roster[seat] = entry; else delete roster[seat];
+  writeStore('ccc.roster', roster);
+  for (const g of [game, demo]) {
+    const n = g && g.npcs.find((x) => x.seat === seat);
+    if (n) setSeat(g, n, { name, title: title || n.title, vacant });
+  }
+}
+
+let naming = null; // the NPC being named
+
+function openNameDialog() {
+  const t = game && game.target;
+  if (!t || t.kind !== 'npc' || !t.npc.ambient) return;
+  naming = t.npc;
+  state = 'naming';
+  input.enabled = false;
+  input.releaseLock();
+  $('name-seat').textContent = describeSeat(game, naming);
+  $('name-input').value = naming.custom ? naming.name : '';
+  $('title-input').value = naming.title || '';
+  $('vacant-input').checked = false;
+  $('name-dialog').hidden = false;
+  $('name-input').focus();
+}
+
+function closeNameDialog(save) {
+  if (!naming) return;
+  if (save) {
+    const name = $('name-input').value.trim().slice(0, 24);
+    const title = $('title-input').value.trim().slice(0, 32);
+    const vacant = $('vacant-input').checked;
+    saveSeat(naming.seat, { name, title, vacant });
+  }
+  naming = null;
+  $('name-dialog').hidden = true;
+  if (state === 'naming') {
+    state = 'playing';
+    input.clear();
+    input.enabled = true;
+    acc = 0;
+    if (!isTouch) input.requestLock();
+  }
+}
+
+$('name-form').addEventListener('submit', (e) => { e.preventDefault(); closeNameDialog(true); });
+$('name-cancel').addEventListener('click', () => closeNameDialog(false));
+$('name-form').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeNameDialog(false); } });
+
+// The roster table on the title screen: one row per seat.
+function buildRosterEditor() {
+  const tbody = $('roster-rows');
+  tbody.textContent = '';
+  const seats = demo.npcs.filter((n) => n.ambient);
+  for (const n of seats) {
+    const tr = document.createElement('tr');
+    const where = document.createElement('td');
+    where.textContent = describeSeat(demo, n);
+    const mk = (type, value, attrs) => {
+      const td = document.createElement('td');
+      const inp = document.createElement('input');
+      inp.type = type;
+      Object.assign(inp, attrs);
+      if (type === 'checkbox') inp.checked = value; else inp.value = value;
+      td.append(inp);
+      return [td, inp];
+    };
+    const mine = roster[n.seat] || {};
+    const [tdName, nameIn] = mk('text', mine.name || (n.custom ? n.name : ''), { placeholder: 'Name', maxLength: 24 });
+    const [tdTitle, titleIn] = mk('text', mine.title || '', { placeholder: n.title, maxLength: 32 });
+    const [tdVacant, vacantIn] = mk('checkbox', !n.present, { title: 'Seat is empty' });
+    const save = () => saveSeat(n.seat, { name: nameIn.value.trim(), title: titleIn.value.trim(), vacant: vacantIn.checked });
+    for (const inp of [nameIn, titleIn, vacantIn]) inp.addEventListener('change', save);
+    tr.append(where, tdName, tdTitle, tdVacant);
+    tbody.append(tr);
+  }
+  $('roster-count').textContent = `${seats.filter((n) => n.custom).length} of ${seats.length} seats named`;
+}
+
+$('roster-export').addEventListener('click', () => {
+  const coworkers = demo.npcs.filter((n) => n.ambient).map((n) => {
+    const [x, y] = n.seat.split(',').map(Number);
+    const mine = roster[n.seat] || {};
+    const entry = { at: [x, y] };
+    if (mine.name || n.custom) entry.name = mine.name || n.name;
+    if (mine.title) entry.title = mine.title;
+    if (mine.vacant || !n.present) entry.vacant = true;
+    return entry;
+  });
+  const blob = new Blob([`${JSON.stringify({ coworkers }, null, 2)}\n`], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'roster.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+$('roster-import').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const list = Array.isArray(parsed) ? parsed : parsed.coworkers;
+    if (!Array.isArray(list)) throw new Error('expected {"coworkers": [...]}');
+    for (const c of list) {
+      if (!Array.isArray(c.at)) continue;
+      saveSeat(seatKey(c.at[0], c.at[1]), { name: c.name || '', title: c.title || '', vacant: !!c.vacant });
+    }
+    buildRosterEditor();
+  } catch (err) {
+    alert(`That roster file couldn't be read: ${err.message}`);
+  }
+  e.target.value = '';
+});
+
+$('roster-clear').addEventListener('click', () => {
+  if (typeof confirm === 'function' && !confirm('Forget all the names in this browser?')) return;
+  for (const seat of Object.keys(roster)) saveSeat(seat, {});
+  buildRosterEditor();
+});
 
 function endRound() {
   state = 'ended';
@@ -399,7 +534,14 @@ function render(g, t, withHud) {
     ctx.fillRect(0, 0, cw, ch);
   }
   ctx.drawImage(low, sx, sy, cw, ch);
-  if (withHud) drawHud(ctx, g, { w: cw, h: ch, u, time: t, showMap, icons, fps: showFps ? fps : 0 });
+  if (withHud) {
+    const kx = cw / low.width, ky = ch / low.height;
+    const project = (x, y, z) => {
+      const r = raycaster.project(x, y, z);
+      return r && { x: r.x * kx, y: r.y * ky, depth: r.depth };
+    };
+    drawHud(ctx, g, { w: cw, h: ch, u, time: t, showMap, icons, fps: showFps ? fps : 0, project });
+  }
 }
 
 function drainEvents() {
@@ -422,6 +564,7 @@ function frame(now) {
         pause();
       } else {
         if (input.consume('map')) showMap = !showMap;
+        if (input.consume('name')) openNameDialog();
         const step = input.read();
         acc += dt;
         let n = 0;
@@ -442,10 +585,10 @@ function frame(now) {
       input.consume('pause'); // Esc while a menu is open shouldn't queue up
       input.consume('map');
     }
-    sound.update(dt, state === 'title' ? null : game, state === 'paused' || state === 'title');
+    sound.update(dt, state === 'title' ? null : game, state === 'paused' || state === 'title' || state === 'naming');
     shake = Math.max(0, shake - dt * 30);
 
-    if (game && (state === 'playing' || state === 'paused' || state === 'ended')) {
+    if (game && (state === 'playing' || state === 'paused' || state === 'ended' || state === 'naming')) {
       render(game, now / 1000, true);
     } else if (demo && state === 'title') {
       demo.player.a = ((now / 1000) * 0.12) % (Math.PI * 2);

@@ -14,6 +14,7 @@ const BIND = {
   drink: ['KeyC'],
   map: ['KeyM', 'Tab'],
   pause: ['Escape', 'KeyP'],
+  name: ['KeyN'],
   answer1: ['Digit1', 'Numpad1'],
   answer2: ['Digit2', 'Numpad2'],
   answer3: ['Digit3', 'Numpad3'],

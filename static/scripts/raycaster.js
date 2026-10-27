@@ -67,11 +67,28 @@ export class Raycaster {
       this.rowV[y] = Math.max(0, Math.min(PANO_H - 1, Math.round(PANO_H / 2 - el * 190)));
     }
 
+    this.cam = { px: p.x, py: p.y, dirX, dirY, planeX, planeY, horizon, invDet: 1 / (planeX * dirY - dirX * planeY) };
     this.drawFloorCeiling(g, dirX, dirY, planeX, planeY, horizon);
     this.drawWalls(g, dirX, dirY, planeX, planeY, horizon, time);
     this.drawSprites(g, dirX, dirY, planeX, planeY, horizon, time);
     this.drawHand(p);
     return fb;
+  }
+
+  // Where a world point (height z in wall units) lands on the frame buffer
+  // in the last rendered frame, or null if off screen or behind a wall.
+  // The HUD uses it to put name tags over people's heads.
+  project(x, y, z) {
+    const c = this.cam;
+    if (!c) return null;
+    const rx = x - c.px, ry = y - c.py;
+    const tX = c.invDet * (c.dirY * rx - c.dirX * ry);
+    const tY = c.invDet * (-c.planeY * rx + c.planeX * ry);
+    if (tY < 0.2) return null;
+    const sx = (this.W / 2) * (1 + tX / tY);
+    if (sx < 0 || sx >= this.W || tY >= this.zbuf[Math.floor(sx)]) return null;
+    const scale = this.focal / tY;
+    return { x: sx, y: c.horizon + 0.5 * scale - z * scale, depth: tY };
   }
 
   drawFloorCeiling(g, dirX, dirY, planeX, planeY, horizon) {

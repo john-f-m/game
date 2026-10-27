@@ -66,6 +66,8 @@ export class World {
     this.zones = new Uint8Array(this.w * this.h);
     this.doorAdj = new Uint8Array(this.w * this.h);
     this.posters = new Uint8Array(this.w * this.h);
+    this.rooms = new Int16Array(this.w * this.h).fill(-1);
+    this.roomInfo = [];
   }
 
   // Wall tiles that carry the "for the children" poster (office.json "posters").
@@ -98,6 +100,42 @@ export class World {
         });
         if (nextToDoor) this.doorAdj[y * this.w + x] = 1;
       }
+    }
+    this.findRooms();
+  }
+
+  // Rooms: connected floor that isn't corridor or doorway. Each gets a side of
+  // the building and a number counted west to east (north/south side) or
+  // north to south (east/west side), used to describe seats ("North office 3").
+  findRooms() {
+    const { w, h } = this;
+    this.rooms = new Int16Array(w * h).fill(-1);
+    this.roomInfo = [];
+    const roomy = (x, y) => !this.isWall(x, y) && this.zones[y * w + x] !== ZONES.c && this.zones[y * w + x] !== ZONES.d;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (this.rooms[y * w + x] >= 0 || !roomy(x, y)) continue;
+        const id = this.roomInfo.length;
+        const queue = [[x, y]];
+        this.rooms[y * w + x] = id;
+        let sx = 0, sy = 0;
+        for (let i = 0; i < queue.length; i++) {
+          const [cx, cy] = queue[i];
+          sx += cx; sy += cy;
+          for (const [dx, dy] of DIRS4) {
+            const nx = cx + dx, ny = cy + dy;
+            if (roomy(nx, ny) && this.rooms[ny * w + nx] < 0) { this.rooms[ny * w + nx] = id; queue.push([nx, ny]); }
+          }
+        }
+        const cx = sx / queue.length, cy = sy / queue.length;
+        const side = cy < 3 ? 'North' : cy > h - 4 ? 'South' : cx < 3 ? 'West' : cx > w - 4 ? 'East' : 'Central';
+        this.roomInfo.push({ zone: this.zones[y * w + x], side, cx, cy, num: 0 });
+      }
+    }
+    for (const side of ['North', 'South', 'West', 'East', 'Central']) {
+      const list = this.roomInfo.filter((r) => r.side === side && r.zone === ZONES.o);
+      list.sort((a, b) => (side === 'North' || side === 'South' ? a.cx - b.cx : a.cy - b.cy));
+      list.forEach((r, i) => { r.num = i + 1; });
     }
   }
 
