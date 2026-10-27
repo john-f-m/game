@@ -1,0 +1,180 @@
+{
+  "_help": "reports: what must be ready before the shelter lets you in. 'signoff' is a coworker's name, 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs; management reviews add more stamps during the round. Coworkers: location is [column, row] on the map in office.json; 'wants' is optional (they only sign off, or help, once you bring that item: coffee, timesheet, r13, memos or vest); 'look' sets the colours of their sprite (optional extras: long_hair, glasses, beard, headset, tie). Coworkers who aren't a report's sign-off can have a 'perk': freeze_managers, flare_watch, fast_reviews, recalibrate, jeopardy (uses 'quiz'; answer is 1, 2 or 3) or people_person.",
+  "reports": [
+    { "id": "weekly", "name": "Weekly Report", "signoff": "Nic" },
+    { "id": "tps", "name": "TPS Report", "signoff": "Katie W." },
+    { "id": "mission_dose", "name": "Mission Dose Report", "signoff": "Kevin" },
+    { "id": "astronaut_dose", "name": "Astronaut Dose Report", "signoff": "John FM" },
+    { "id": "astronaut_risk", "name": "Astronaut Risk Report", "stamps": ["eddie", "clifton"] }
+  ],
+  "npc_encounters": [
+    {
+      "location": [8, 10],
+      "npc": "Nic",
+      "look": { "hair": "#2b1d14", "skin": "#c98e62", "shirt": "#6d8f4e", "pants": "#3a3f4a" },
+      "lines": [
+        "🗣️ Nic: Ugh, Eddie just added another form to the radiation tracking stack.",
+        "🗣️ Nic: Sometimes I wonder if a solar flare could take out this whole floor... and our paperwork with it."
+      ],
+      "sign": "Fine, I'll sign off on the Weekly Report. If the flare takes out the paperwork, at least my signature goes down with it."
+    },
+    {
+      "location": [9, 22],
+      "npc": "Katie W.",
+      "look": { "hair": "#a0522d", "skin": "#f0c8a0", "shirt": "#8e5aa8", "pants": "#2d2f3a", "long_hair": true },
+      "lines": [
+        "🗣️ Katie W.: If Clifton asks me about my timesheet one more time, I’m launching him into a supernova.",
+        "🗣️ Katie W.: At least if the sun explodes, I won’t have to finish my TPS reports."
+      ],
+      "wants": {
+        "item": "timesheet",
+        "ask": "Sign off on the TPS Report? Sure, right after you rescue my timesheet. It's jammed in the copy room, the south-west corner office.",
+        "thanks": "My timesheet! Clifton can audit THAT. TPS Report signed off, cover sheet and all."
+      }
+    },
+    {
+      "location": [22, 14],
+      "npc": "Kevin",
+      "look": { "hair": "#e3c26a", "skin": "#e8b48c", "shirt": "#c0504d", "pants": "#3b3b3b" },
+      "lines": [
+        "🗣️ Kevin: Eddie says if I touch the Mars dosimeter again, he’ll reassign me to the printer queue.",
+        "🗣️ Kevin: I swear, I’ve had more meaningful conversations with cosmic rays than with Clifton."
+      ],
+      "wants": {
+        "item": "coffee",
+        "ask": "I can't sign off on a Mission Dose Report before coffee. The break room is in the middle of the floor, behind the elevators.",
+        "thanks": "Oh, that's the good stuff. Mission Dose Report: signed."
+      }
+    },
+    {
+      "location": [29, 13],
+      "npc": "John FM",
+      "look": { "hair": "#3a3a3a", "skin": "#d9a37c", "shirt": "#4f7fb5", "pants": "#2f3340", "glasses": true },
+      "lines": [
+        "🗣️ John FM: I told Eddie I was exposed to gamma... he said ‘Did you file an R-13 for that?’",
+        "🗣️ John FM: If Clifton asks ‘what is it you do here?’ again, I’ll tell him: I absorb solar storms... emotionally."
+      ],
+      "wants": {
+        "item": "r13",
+        "ask": "I'll sign off on your Astronaut Dose Report if you grab me a blank R-13 from Eddie's filing cabinets. His office is on the north side. Don't let him see you.",
+        "thanks": "A fresh R-13. Smells like bureaucracy. Your Astronaut Dose Report is signed."
+      }
+    },
+    {
+      "location": [13, 1],
+      "npc": "Ryan R",
+      "title": "IT",
+      "look": { "hair": "#6b4a2b", "skin": "#e6b391", "shirt": "#2e2f38", "pants": "#3a3f4a", "glasses": true },
+      "lines": [
+        "🗣️ Ryan R: Have you tried turning the solar storm off and on again?",
+        "🗣️ Ryan R: The printer isn't broken. It's in orbit. That's a different ticket category."
+      ],
+      "wants": {
+        "item": "memos",
+        "ask": "Did you put in a ticket? No ticket, no fix. Write one on a memo and bring it to me.",
+        "thanks": "Ticket received. Pushing a mandatory update to every management laptop... now. That buys you about fifteen seconds."
+      },
+      "perk": "freeze_managers"
+    },
+    {
+      "location": [29, 9],
+      "npc": "Janet",
+      "title": "Mission Control Console",
+      "look": { "hair": "#c9a36b", "skin": "#f0c8a0", "shirt": "#3d5a80", "pants": "#2d2f3a", "long_hair": true, "headset": true },
+      "lines": [
+        "🗣️ Janet: I've got the sun on one monitor and Eddie's forms on the other. Guess which one's scarier.",
+        "🗣️ Janet: We are GO for coffee. NO-GO for Clifton's timesheet audit."
+      ],
+      "perk": "flare_watch",
+      "perk_line": "I'll patch you into the console loop. You'll hear about flares long before the windows do."
+    },
+    {
+      "location": [6, 7],
+      "npc": "Steve J",
+      "title": "Spreadsheets",
+      "look": { "hair": "#4a3a2a", "skin": "#d9a37c", "shirt": "#5c9e4a", "pants": "#353b48", "glasses": true },
+      "lines": [
+        "🗣️ Steve J: Everything is a spreadsheet if you believe in yourself.",
+        "🗣️ Steve J: Eddie asked for a legend on my color-coded dose tracker. I gave him a pivot table. He hasn't spoken to me since."
+      ],
+      "perk": "fast_reviews",
+      "perk_line": "Hand me your reports. Pivot tables, conditional formatting, frozen header row... There. Management will approve these twice as fast."
+    },
+    {
+      "location": [5, 1],
+      "npc": "Ramona",
+      "title": "Dosimeters",
+      "look": { "hair": "#2b1d14", "skin": "#c98e62", "shirt": "#d9a441", "pants": "#3a3f4a", "long_hair": true },
+      "lines": [
+        "🗣️ Ramona: Badge on, badge facing out. Every dosimeter tells a story. Yours is a thriller.",
+        "🗣️ Ramona: I read dosimeters the way other people read tea leaves."
+      ],
+      "perk": "recalibrate",
+      "perk_line": "Your badge has drift. Let me swap it for a freshly calibrated one... See? Much better numbers."
+    },
+    {
+      "location": [24, 7],
+      "npc": "Amir B",
+      "title": "Jeopardy Aficionado",
+      "look": { "hair": "#1f1a17", "skin": "#b98560", "shirt": "#2f4f9f", "pants": "#2f3340", "beard": true },
+      "lines": [
+        "🗣️ Amir B: I'll take Space Weather for 800.",
+        "🗣️ Amir B: Remember: answer in the form of a question."
+      ],
+      "perk": "jeopardy",
+      "quiz": [
+        { "clue": "This SI unit of dose equivalent is worth 100 rem.", "choices": ["What is the gray?", "What is the sievert?", "What is the becquerel?"], "answer": 2 },
+        { "clue": "This SI unit of absorbed dose is one joule per kilogram.", "choices": ["What is the gray?", "What is the curie?", "What is the roentgen?"], "answer": 1 },
+        { "clue": "Earth's belts of trapped radiation are named for this Iowa physicist.", "choices": ["Who is Van Allen?", "Who is Geiger?", "Who is Roentgen?"], "answer": 1 },
+        { "clue": "The huge solar particle event of August 1972 struck between these two missions.", "choices": ["What are Apollo 11 and 12?", "What are Apollo 13 and 14?", "What are Apollo 16 and 17?"], "answer": 3 },
+        { "clue": "Mission Control at Johnson Space Center is in this numbered building.", "choices": ["What is Building 1?", "What is Building 9?", "What is Building 30?"], "answer": 3 },
+        { "clue": "This weak spot in Earth's magnetic field gives the ISS a radiation bump on many orbits.", "choices": ["What is the South Atlantic Anomaly?", "What is the Bermuda Triangle?", "What is the aurora borealis?"], "answer": 1 },
+        { "clue": "On a space weather alert, CME stands for this.", "choices": ["What is a cosmic microwave echo?", "What is a coronal mass ejection?", "What is a crew medical exam?"], "answer": 2 },
+        { "clue": "This station has had people aboard continuously since November 2000.", "choices": ["What is Mir?", "What is Skylab?", "What is the ISS?"], "answer": 3 },
+        { "clue": "PC LOAD LETTER baffled the staff in this 1999 office comedy.", "choices": ["What is Office Space?", "What is The Office?", "What is Clerks?"], "answer": 1 }
+      ]
+    },
+    {
+      "location": [16, 13],
+      "npc": "Mark S",
+      "title": "People Person",
+      "look": { "hair": "#8a6a4a", "skin": "#e8b48c", "shirt": "#eef0f2", "pants": "#3b3b3b", "tie": "#c0392b" },
+      "lines": [
+        "🗣️ Mark S: I'm a people person. I take the paperwork to management so the engineers don't have to.",
+        "🗣️ Mark S: What would you say I do here? I talk to Eddie and Clifton, so you don't have to."
+      ],
+      "perk": "people_person",
+      "perk_line": "If Eddie or Clifton corner you, I'll step in and smooth it over. I have people skills."
+    }
+  ],
+  "puns": [
+    "🗣️ You hear someone mutter: ‘I was told there would be no ionizing radiation...’",
+    "🗣️ A sigh echoes from the cubicle: ‘If someone steals my lead shielding again, I’m gonna burn this place down.’",
+    "🗣️ A voice jokes: ‘I deal with solar proton events... not people.’",
+    "🗣️ Overheard: ‘Yeah, I’m gonna need you to stay during the coronal mass ejection...’",
+    "🗣️ Someone’s yelling: ‘PC Load Letter?! What does that even mean in a vacuum?!’",
+    "🗣️ Overheard: ‘Ryan, the printer's doing it again.’ ‘Did you file a ticket?’",
+    "🗣️ From the cubicles: ‘What is... a coronal mass ejection?’ ‘Correct!’",
+    "🗣️ Someone mutters: ‘Steve put the coffee budget in a pivot table and now nobody's allowed coffee.’"
+  ],
+  "bosses": {
+    "eddie": {
+      "spot": ["Hold on. Is that an unfiled Weekly Report?", "You there! I've got a form for that.", "Got a second? It's about the radiation tracking stack."],
+      "hear": ["Hm? Who's out there without a hall pass form?", "Was that a printer jam? That needs a form."],
+      "lost": ["...I'll just add a form about that.", "Fine. I'll put it in the stack."],
+      "catch": ["Did you file a dose report for that? Here's the addendum, the appendix and a cover sheet.", "This goes on the radiation tracking stack. In triplicate."],
+      "stunned": ["Ooh, a memo. I must read it in full.", "A memo! Is this the new revision?"],
+      "review": ["Let's see... dose units, check. Font size... hmm.", "Did you use the new template? ...You did. Huh."],
+      "approve": ["Fine. Approved. Don't make it a habit.", "STAMP. Next!"]
+    },
+    "clifton": {
+      "spot": ["Got a minute? It's about your timesheet...", "Hey! Quick question!", "Ah, just the person I wanted to audit."],
+      "hear": ["Someone there? I have a quick question.", "I heard footsteps. Billable footsteps?"],
+      "lost": ["I'll circle back.", "Let's put a pin in that."],
+      "catch": ["So... what is it you do here, exactly?", "Your timesheet says 'absorbing solar storms'. That's not a billing code.", "Your TPS Report is missing the new cover sheet."],
+      "stunned": ["A memo? I'll need to cross-reference this.", "Hmm, interesting memo. Let me just..."],
+      "review": ["Let me cross-reference this with your timesheet...", "Interesting. And what is it this report does here?"],
+      "approve": ["Approved. I'll circle back on the font.", "STAMP. Let's touch base next week."]
+    }
+  }
+}

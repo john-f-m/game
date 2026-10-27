@@ -1,0 +1,85 @@
+{
+  "_help": "Map rows are strings; every character is one tile. Coordinates elsewhere are [column, row] of a tile, counting from 0 at the top-left. The game checks this file on load and moves anything placed inside a wall to the nearest open tile (with a console warning). window_view is \"orbit\" or \"houston\".",
+  "_legend": {
+    ".": "floor",
+    "#": "bulkhead / core wall",
+    "O": "office drywall",
+    "W": "window (radiation leaks through during the storm)",
+    "C": "cubicle partition",
+    "F": "filing cabinets",
+    "B": "whiteboard",
+    "R": "server rack",
+    "V": "vending machine",
+    "E": "elevator doors",
+    "S": "storm shelter door (face it and press E to enter)"
+  },
+  "name": "Building 45, 5th Floor",
+  "window_view": "orbit",
+  "briefing": "Due to a clerical error on Form R-13, the 5th floor of Building 45 is now in low Earth orbit, and a coronal mass ejection is on the way.",
+  "map": [
+    "####WWW#WWW#WWW#WWW#WWW#WWW####",
+    "####...O...O...O...O..FO...####",
+    "####...O...O...O...O..FO...####",
+    "###OO.OOO.OOO.OOO.OOO.OOO.OO###",
+    "W..O.......................O..W",
+    "W.............................W",
+    "W..O.CCCCC...........CCCCC.O..W",
+    "#OOO.C.C.C...........C.C.C.OOO#",
+    "W..O........###S###........O..W",
+    "W...........E#####E...........W",
+    "W..O.C.C.C..E#####E..C.C.C.O..W",
+    "#OOO.CCCCC..##V#V##..CCCCC.OOO#",
+    "W..O........#.....#........O..W",
+    "W....CCCCC..B.....B..CCCCC....W",
+    "W..O.C.C.C..R.....R..C.C.C.O..W",
+    "#OOO........###.###........OOO#",
+    "W..O.......................O..W",
+    "W....C.C.C...........C.C.C....W",
+    "W..O.CCCCC...........CCCCC.O..W",
+    "W..O.......................O..W",
+    "###OO.OOO.OOO.OOO.OOO.OOO.OO###",
+    "####...O...O...O...O...O...####",
+    "####...O...O...O...O...O...####",
+    "####WWW#WWW#WWW#WWW#WWW#WWW####"
+  ],
+  "player": { "start": [19, 10], "facing": "east" },
+  "bosses": [
+    {
+      "id": "eddie",
+      "name": "Eddie",
+      "start": [20, 2],
+      "patrol": [[20, 2], [21, 4], [26, 4], [26, 12], [20, 12], [20, 7], [11, 7], [11, 4], [21, 4]]
+    },
+    {
+      "id": "clifton",
+      "name": "Clifton",
+      "start": [1, 9],
+      "patrol": [[1, 9], [4, 9], [4, 19], [15, 19], [15, 16], [10, 16], [10, 12], [4, 12]]
+    }
+  ],
+  "items": [
+    { "type": "coffee", "at": [13, 12] },
+    { "type": "coffee", "at": [17, 12] },
+    { "type": "coffee", "at": [15, 14] },
+    { "type": "memos", "at": [5, 21] },
+    { "type": "memos", "at": [10, 5] },
+    { "type": "memos", "at": [19, 5] },
+    { "type": "memos", "at": [11, 18] },
+    { "type": "timesheet", "at": [5, 22] },
+    { "type": "r13", "at": [21, 1] },
+    { "type": "vest", "at": [29, 5] }
+  ],
+  "decor": [
+    { "type": "printer", "at": [4, 22] },
+    { "type": "printer", "at": [6, 22] },
+    { "type": "cooler", "at": [17, 14] },
+    { "type": "trash", "at": [13, 14] },
+    { "type": "plant", "at": [6, 1] },
+    { "type": "plant", "at": [24, 22] },
+    { "type": "plant", "at": [1, 19] },
+    { "type": "plant", "at": [29, 16] },
+    { "type": "plant", "at": [4, 4] },
+    { "type": "plant", "at": [26, 19] },
+    { "type": "console", "at": [29, 8] }
+  ]
+}

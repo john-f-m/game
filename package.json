@@ -1,0 +1,16 @@
+{
+  "name": "cosmic-cubicle-combatants",
+  "version": "2.0.0",
+  "description": "Intergalactic office RPG - survive bureaucracy in space!",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node tools/simulate.mjs",
+    "build": "node tools/build.mjs",
+    "deploy": "node tools/build.mjs && npx wrangler@4 deploy",
+    "sprites": "node tools/process-sprites.mjs"
+  },
+  "author": "SRAG Systems",
+  "license": "MIT"
+}

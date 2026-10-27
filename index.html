@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cosmic Cubicle Combatants</title>
+  <meta name="description" content="An intergalactic office RPG: collect four signatures and reach the storm shelter before the solar storm hits. Survive bureaucracy in space.">
+  <meta name="theme-color" content="#070b16">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23070b16'/%3E%3Ccircle cx='16' cy='16' r='11' fill='%23f2d22e'/%3E%3Cpath d='M16 16 L10 6 A11.5 11.5 0 0 1 22 6 Z M16 16 L27.5 16 A11.5 11.5 0 0 1 22 26 Z M16 16 L10 26 A11.5 11.5 0 0 1 4.5 16 Z' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23111'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+  <canvas id="screen" aria-label="Game view"></canvas>
+
+  <div id="touch-ui" hidden>
+    <div class="stick-zone"><div class="stick-base"><div class="stick-knob"></div></div></div>
+    <div class="look-zone"></div>
+    <div class="touch-buttons">
+      <button type="button" data-action="pause" aria-label="Pause">II</button>
+      <button type="button" data-action="map">Map</button>
+      <button type="button" data-action="drink">Coffee</button>
+      <button type="button" data-action="interact" class="big">Use</button>
+      <button type="button" data-action="throw" class="big">Memo</button>
+    </div>
+    <div class="quiz-buttons">
+      <button type="button" data-action="answer1">1</button>
+      <button type="button" data-action="answer2">2</button>
+      <button type="button" data-action="answer3">3</button>
+    </div>
+  </div>
+
+  <section id="loading" class="overlay">
+    <div class="panel narrow">
+      <p class="kicker">Clocking in</p>
+      <h1 class="logo">Cosmic Cubicle Combatants</h1>
+      <p class="muted" id="loading-text">Loading the floor plan…</p>
+    </div>
+  </section>
+
+  <section id="error" class="overlay" hidden>
+    <div class="panel narrow">
+      <h2 id="error-heading">The game couldn't start</h2>
+      <p id="error-message"></p>
+      <p class="muted">Play it from a web server: run <code>npm start</code> in the project folder and open the address it prints, or upload the folder to any static host.</p>
+      <details><summary>Technical details</summary><pre id="error-details"></pre></details>
+      <button type="button" id="reload" class="primary">Reload</button>
+    </div>
+  </section>
+
+  <section id="title" class="overlay" hidden>
+    <div class="panel wide">
+      <header class="title-head">
+        <p class="kicker" id="floor-name"></p>
+        <h1 class="logo">Cosmic Cubicle Combatants</h1>
+        <p class="tagline">Survive bureaucracy in space.</p>
+      </header>
+
+      <div class="cols">
+        <section class="card">
+          <h2>Solar storm warning</h2>
+          <p id="briefing"></p>
+          <ol class="steps">
+            <li>Get your reports ready: <span id="report-list"></span>. <span id="coworkers"></span> sign off on them, and some want a favor first.</li>
+            <li>Management wants <b>approval stamps</b>, and keeps asking for more. Walk up to Eddie or Clifton on purpose and press E to get one.</li>
+            <li>Reach the <b>Storm Shelter</b>, the stairwell door in the central core, before the CME arrives. Stay clear of the windows when a <b>solar flare</b> hits.</li>
+            <li>Around the floor you'll also find <span id="helpers"></span>. They're optional, and each can help you out once you find them.</li>
+          </ol>
+        </section>
+        <section class="card">
+          <h2>Known hazards</h2>
+          <div class="hazard">
+            <img id="portrait-eddie" src="static/sprites/eddie/eddie_1.png" alt="Eddie" width="92" height="130">
+            <div><h3>Eddie</h3><p>Forms. So many forms. Getting caught costs sanity. Also approves your reports, eventually.</p></div>
+          </div>
+          <div class="hazard">
+            <img id="portrait-clifton" src="static/sprites/clifton/clifton_1.png" alt="Clifton" width="78" height="123">
+            <div><h3>Clifton</h3><p>Timesheet audits. Getting caught costs sanity and 20 seconds. His stamp is mandatory.</p></div>
+          </div>
+          <p class="muted small">They only see what's in front of them. Sneak behind, break line of sight, or stun them with a paper-airplane memo. Running is loud.</p>
+        </section>
+      </div>
+
+      <div id="difficulty" class="diffs" role="radiogroup" aria-label="Difficulty"></div>
+      <button type="button" id="start" class="primary start">Clock in</button>
+
+      <details class="controls">
+        <summary>Controls &amp; settings</summary>
+        <div class="cols">
+          <table class="keys">
+            <tr><th>Move</th><td>W A S D</td></tr>
+            <tr><th>Turn</th><td>Mouse (click the game to capture it) or ← →</td></tr>
+            <tr><th>Sprint</th><td>Shift (noisy, uses stamina)</td></tr>
+            <tr><th>Talk / ask for a stamp</th><td>E or Enter</td></tr>
+            <tr><th>Throw memo</th><td>Space or click</td></tr>
+            <tr><th>Drink coffee</th><td>C</td></tr>
+            <tr><th>Map</th><td>M or Tab</td></tr>
+            <tr><th>Pause</th><td>Esc or P</td></tr>
+          </table>
+          <div id="title-settings-slot"></div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section id="pause" class="overlay" hidden>
+    <div class="panel narrow">
+      <h2>Paused</h2>
+      <p class="muted" id="pause-status"></p>
+      <div class="buttons">
+        <button type="button" id="resume" class="primary">Resume</button>
+        <button type="button" id="restart">Restart</button>
+        <button type="button" id="quit">Main menu</button>
+      </div>
+      <div id="pause-settings-slot"></div>
+    </div>
+  </section>
+
+  <section id="end" class="overlay" hidden>
+    <div class="panel narrow">
+      <p class="kicker" id="end-rating"></p>
+      <h2 id="end-title"></h2>
+      <p id="end-text"></p>
+      <p class="score">Score <span id="end-score"></span></p>
+      <table class="stats"><tbody id="end-stats"></tbody></table>
+      <div class="buttons">
+        <button type="button" id="again" class="primary">Play again</button>
+        <button type="button" id="menu">Main menu</button>
+      </div>
+    </div>
+  </section>
+
+  <form id="settings" class="settings" onsubmit="return false">
+    <label class="check"><input type="checkbox" id="opt-sound"> Sound</label>
+    <label class="check"><input type="checkbox" id="opt-classic"> A / D turn instead of strafe</label>
+    <label>Mouse sensitivity <input type="range" id="opt-sens" min="0.3" max="3" step="0.1"></label>
+    <label>Pixel size
+      <select id="opt-pixels">
+        <option value="240">Chunky</option>
+        <option value="300">Classic</option>
+        <option value="400">Fine</option>
+        <option value="540">Finest (needs a fast computer)</option>
+      </select>
+    </label>
+  </form>
+
+  <div id="rotate" aria-hidden="true">Turn your phone sideways to play.</div>
+
+  <noscript><div class="overlay"><div class="panel narrow"><h2>JavaScript is off</h2><p>This game needs JavaScript.</p></div></div></noscript>
+  <script>
+    // Browsers refuse to load module scripts from file:// pages.
+    if (location.protocol === 'file:') {
+      document.getElementById('loading-text').innerHTML =
+        'This page has to be served over http. In the project folder run <code>npm start</code>, then open the address it prints (or upload the folder to a web host).';
+    }
+  </script>
+  <script type="module" src="static/scripts/game-engine.js"></script>
+</body>
+</html>
