@@ -2,18 +2,18 @@
 // 3D view: clock, checklist, meters, inventory, minimap, dialog, toasts.
 
 import { T } from './world.js';
-import { formatClock, readyCount, reportReady, pendingStamps, hasItem, ITEMS, PLAYER } from './game.js';
+import { formatClock, readyCount, reportReady, pendingStamps, hasItem, ITEMS, PLAYER, CREW, TASKS, needlePos } from './game.js';
 
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 export const BOSS_COLORS = { eddie: '#7fd6ff', clifton: '#ffb85c' };
 const TOAST_COLORS = {
-  info: '#e8eef7', warn: '#ffd166', alarm: '#ff6b6b', good: '#7dffa0', item: '#bfe3ff', overheard: '#cdb8ff',
+  info: '#e8eef7', warn: '#ffd166', alarm: '#ff6b6b', good: '#7dffa0', item: '#bfe3ff', overheard: '#cdb8ff', npc: '#ffc68a',
 };
 const TILE_COLORS = {
   [T.FLOOR]: '#1d2736', [T.BULKHEAD]: '#56637a', [T.WINDOW]: '#6fb7ff', [T.CUBICLE]: '#8a93a6', [T.FILING]: '#b5ad9c',
-  [T.WHITEBOARD]: '#e8ecef', [T.SERVER]: '#2f3846', [T.VENDING]: '#c0504d', [T.SHELTER]: '#f2d22e', [T.OFFICE]: '#cdbfa3', [T.ELEVATOR]: '#a6aeb8',
+  [T.WHITEBOARD]: '#e8ecef', [T.SERVER]: '#2f3846', [T.VENDING]: '#c0504d', [T.SHELTER]: '#7b8796', [T.OFFICE]: '#cdbfa3', [T.ELEVATOR]: '#a6aeb8',
 };
 
 const font = (px, weight = 600, family = SANS) => `${weight} ${Math.round(px)}px ${family}`;
@@ -81,15 +81,11 @@ export function drawHud(ctx, g, o) {
   ctx.textBaseline = 'alphabetic';
   ctx.imageSmoothingEnabled = false;
 
-  // --- full-screen effects
-  if (g.flare.state === 'active') {
-    const k = Math.min(1, g.flare.timer / 7);
-    ctx.fillStyle = `rgba(255, 244, 214, ${0.08 + 0.3 * k * k})`;
-    ctx.fillRect(0, 0, w, h);
-  } else if (g.flare.state === 'warning') {
-    vignette(ctx, w, h, 'rgba(255, 40, 40, 0.9)', 0.25 + 0.25 * Math.sin(time * 10));
-  }
-  vignette(ctx, w, h, 'rgba(190, 255, 60, 0.9)', Math.min(0.45, (p.doseRate - 0.6) * 0.08));
+  // --- full-screen effects: flare alarms from the console, getting caught,
+  // and the pull of Kevin's gravity well.
+  if (g.flare.state === 'warning') vignette(ctx, w, h, 'rgba(255, 40, 40, 0.9)', 0.25 + 0.25 * Math.sin(time * 10));
+  else if (g.flare.state === 'active') vignette(ctx, w, h, 'rgba(255, 150, 40, 0.9)', 0.18 + 0.08 * Math.sin(time * 4));
+  vignette(ctx, w, h, 'rgba(70, 20, 120, 1)', (g.gravity || 0) * 0.9);
   vignette(ctx, w, h, 'rgba(255, 0, 0, 1)', p.hurt * 1.2);
 
   // --- crosshair, detection, prompt
@@ -115,6 +111,33 @@ export function drawHud(ctx, g, o) {
     ctx.fillText(label, cx, cy - 40 * u);
     ctx.globalAlpha = 1;
   }
+  // Coworker hazards: Kevin's pull, Ryan closing in, Neil wandering about.
+  if (p.lock <= 0) {
+    const kevin = g.npcs.find((n) => n.blackHole && n.present && n.chatCd <= 0 && Math.hypot(n.x - p.x, n.y - p.y) < n.blackHole.radius);
+    const ryan = g.npcs.find((n) => n.physics && n.hunting);
+    const neil = g.npcs.find((n) => n.dropIn && n.present && n.seeking);
+    const warn = kevin ? [`${kevin.name.toUpperCase()}'S GRAVITY WELL: walk away!`, '#c9a6ff']
+      : ryan ? [`${ryan.name} is coming over with a physics problem`, '#ffc68a']
+        : neil ? [`${neil.name} is on the floor, looking for someone to talk to`, '#ffc68a'] : null;
+    if (warn) {
+      ctx.font = font(14 * u, 800);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = warn[1];
+      ctx.globalAlpha = 0.7 + 0.3 * Math.sin(time * 8);
+      ctx.fillText(warn[0], cx, cy - (chaser || watcher ? 62 : 40) * u);
+      ctx.globalAlpha = 1;
+    }
+  }
+  const run = g.reports.find((r) => r.task && r.task.type === 'vehicle' && r.task.running && !r.task.done);
+  if (run) {
+    const bw = 220 * u;
+    panel(ctx, cx - bw / 2, h - m - 132 * u, bw, 30 * u, u, 0.7);
+    ctx.font = font(12 * u, 700);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#bfe3ff';
+    ctx.fillText(`Vehicle dose run ${Math.floor(run.task.progress * 100)}%`, cx - bw / 2 + 10 * u, h - m - 113 * u);
+    bar(ctx, cx + 10 * u, h - m - 121 * u, bw / 2 - 20 * u, 8 * u, run.task.progress, '#56ccf2', u);
+  }
 
   if (g.prompt && g.status === 'playing') {
     ctx.font = font(17 * u, 700);
@@ -134,6 +157,8 @@ export function drawHud(ctx, g, o) {
 
   drawPerks(ctx, g, o, m);
   if (g.quiz) drawQuiz(ctx, g, o);
+  else if (g.mini) drawCalibration(ctx, g, o);
+  else if (g.chat) drawChat(ctx, g, o);
   else if (p.lock > 0) drawLock(ctx, p, o);
   if (g.stampFlash) drawStamp(ctx, g.stampFlash, o);
   if (o.showMap) drawBigMap(ctx, g, o);
@@ -153,6 +178,15 @@ function reportRows(g) {
   return g.reports.map((r) => {
     if (reportReady(r)) return { text: `✔ ${r.name}`, color: '#7dffa0' };
     const needs = [];
+    const t = r.task;
+    if (t && !t.done) {
+      const info = TASKS[t.type];
+      if (t.type === 'vehicle' && t.running) needs.push(`vehicle run ${Math.floor(t.progress * 100)}%`);
+      else if (info.needs && !hasItem(p, info.needs)) {
+        const giver = g.npcs.find((x) => x.gives === info.needs);
+        needs.push(`${info.short} (get ${ITEMS[info.needs].name}${giver ? ` from ${giver.name}` : ''})`);
+      } else needs.push(info.short);
+    }
     const n = r.signoff;
     if (n && !n.signed) {
       if (!n.met) needs.push(`sign-off: ${n.name}`);
@@ -165,20 +199,26 @@ function reportRows(g) {
   });
 }
 
+// Sub-lines can be long (task + sign-off + stamps): wrap them.
+function rowLines(ctx, rows, width, u) {
+  ctx.font = font(12 * u, 600);
+  return rows.map((r) => ({ ...r, subLines: r.sub ? wrap(ctx, r.sub, width) : [] }));
+}
+
 function drawClockAndChecklist(ctx, g, o, m) {
   const { u, time } = o;
   const pw = 340 * u;
-  const rows = reportRows(g);
+  const x = m + 14 * u, tw = pw - 28 * u;
+  const rows = rowLines(ctx, reportRows(g), tw - 12 * u, u);
   const done = readyCount(g) === g.reports.length;
-  const listH = rows.reduce((hh, r) => hh + (r.sub ? 38 : 22), 0);
+  const listH = rows.reduce((hh, r) => hh + 22 + r.subLines.length * 16, 0);
   const ph = (124 + listH + (done ? 26 : 0)) * u;
   panel(ctx, m, m, pw, ph, u);
   let y = m + 22 * u;
-  const x = m + 14 * u, tw = pw - 28 * u;
   ctx.textAlign = 'left';
   ctx.font = font(12 * u, 700);
   ctx.fillStyle = '#9fb0c8';
-  ctx.fillText('CME ARRIVES IN', x, y);
+  ctx.fillText('FLIGHT DIRECTOR DEADLINE', x, y);
   if (g.flare.state !== 'idle') {
     ctx.textAlign = 'right';
     ctx.fillStyle = g.flare.state === 'active' ? '#fff3c4' : '#ff6b6b';
@@ -211,11 +251,11 @@ function drawClockAndChecklist(ctx, g, o, m) {
     ctx.font = font(14 * u, 650);
     ctx.fillStyle = r.color;
     ctx.fillText(r.text, x, y, tw);
-    if (r.sub) {
+    ctx.font = font(12 * u, 600);
+    ctx.fillStyle = r.subColor;
+    for (const line of r.subLines) {
       y += 16 * u;
-      ctx.font = font(12 * u, 600);
-      ctx.fillStyle = r.subColor;
-      ctx.fillText(r.sub, x + 12 * u, y, tw - 12 * u);
+      ctx.fillText(line, x + 12 * u, y, tw - 12 * u);
     }
     y += 2 * u;
   }
@@ -223,7 +263,7 @@ function drawClockAndChecklist(ctx, g, o, m) {
     y += 24 * u;
     ctx.font = font(14 * u, 800);
     ctx.fillStyle = '#7dffa0';
-    ctx.fillText('→ Get to the Storm Shelter!', x, y);
+    ctx.fillText('→ Submit at the SRAG console (console room)', x, y, tw);
   }
 }
 
@@ -254,19 +294,19 @@ function drawMeters(ctx, g, o, m) {
   y += 26 * u;
   ctx.font = font(12 * u, 700);
   ctx.fillStyle = '#9fb0c8';
-  ctx.fillText(p.vest ? 'DOSE (LEAD APRON ON)' : 'DOSE', x, y);
+  ctx.fillText('CREW DOSE (IN ORBIT)', x, y);
   ctx.textAlign = 'right';
   ctx.font = font(13 * u, 700, MONO);
-  const rate = p.doseRate;
-  ctx.fillStyle = rate > 3 ? '#ff5a5a' : rate > 0.8 ? '#ffd166' : '#9fe8b0';
-  ctx.fillText(`${p.dose.toFixed(1)} mSv  +${rate.toFixed(2)}/s`, x + bw, y);
+  const rate = g.crewRate;
+  ctx.fillStyle = g.flare.state === 'active' ? '#ff5a5a' : rate > 0.07 ? '#ffd166' : '#9fe8b0';
+  ctx.fillText(`${g.crewDose.toFixed(1)} mSv  +${rate.toFixed(2)}/s`, x + bw, y);
   ctx.textAlign = 'left';
   y += 7 * u;
-  const d = p.dose / PLAYER.doseLimit;
+  const d = g.crewDose / CREW.limit;
   bar(ctx, x, y, bw, 9 * u, d, d < 0.5 ? '#b6f35a' : d < 0.8 ? '#ffd166' : '#ff5a5a', u);
   ctx.font = font(10.5 * u, 600);
   ctx.fillStyle = '#7f8da3';
-  ctx.fillText(`limit ${PLAYER.doseLimit} mSv · windows are dangerous during flares`, x, y + 24 * u, bw);
+  ctx.fillText(`event limit ${CREW.limit} mSv · the sooner you submit, the sooner they shelter`, x, y + 24 * u, bw);
 }
 
 function drawInventory(ctx, g, o, m) {
@@ -276,8 +316,8 @@ function drawInventory(ctx, g, o, m) {
     { icon: icons.memos, count: p.memos, key: 'Space', label: 'memos' },
     { icon: icons.coffee, count: p.coffee, key: 'C', label: 'coffee' },
   ];
-  for (const k of ['timesheet', 'r13']) if (p.items.has(k)) slots.push({ icon: icons[k], label: k === 'r13' ? 'R-13' : 'timesheet' });
-  if (p.vest) slots.push({ icon: icons.vest, label: 'apron' });
+  const LABELS = { timesheet: 'timesheet', r13: 'R-13', dosimetry: 'dosimetry' };
+  for (const k of Object.keys(LABELS)) if (p.items.has(k)) slots.push({ icon: icons[k], label: LABELS[k] });
   const sw = 64 * u, gap = 8 * u;
   const pw = slots.length * sw + (slots.length - 1) * gap + 24 * u, ph = 86 * u;
   const x0 = w - m - pw, y0 = h - m - ph;
@@ -376,6 +416,8 @@ function drawPerks(ctx, g, o, m) {
   if (g.perks.shield) rows.push('People person on call (next catch is free)');
   if (g.perks.fastReviews) rows.push('Pivot-tabled reports: fast reviews');
   if (g.perks.flareWatch) rows.push('Flare watch: early warnings');
+  if (g.perks.remote) rows.push('Remote access to the vehicle run');
+  if (g.perks.priority) rows.push('Vehicle run: priority queue (2x)');
   if (!rows.length) return;
   ctx.font = font(12.5 * u, 650);
   const pw = 290 * u, ph = (12 + rows.length * 19) * u;
@@ -387,43 +429,117 @@ function drawPerks(ctx, g, o, m) {
 }
 
 // Amir's clue board.
+// Amir's clue board, or the medical dose calculator (same 1-2-3 answers).
 function drawQuiz(ctx, g, o) {
   const { u, w, h } = o;
   const q = g.quiz, p = g.player;
+  const calc = q.kind === 'dosecalc';
+  const theme = calc
+    ? { bg: '#0b1a12', border: '#3cff6e', accent: '#3cff6e', text: '#d8ffe4', clueFont: font(21 * u, 700, MONO), upper: false }
+    : { bg: '#060ce9', border: '#ffcc00', accent: '#ffcc00', text: '#ffffff', clueFont: font(26 * u, 800, 'Georgia, "Times New Roman", serif'), upper: true };
   const bw = Math.min(760 * u, w - 40 * u);
-  ctx.font = font(26 * u, 800, 'Georgia, "Times New Roman", serif');
-  const clue = wrap(ctx, q.clue.toUpperCase(), bw - 60 * u);
+  ctx.font = theme.clueFont;
+  const clue = wrap(ctx, theme.upper ? q.clue.toUpperCase() : q.clue, bw - 60 * u);
   const bh = (110 + clue.length * 34 + q.choices.length * 34) * u;
   const x = w / 2 - bw / 2, y = h / 2 - bh / 2;
   roundRect(ctx, x, y, bw, bh, 8 * u);
-  ctx.fillStyle = '#060ce9';
+  ctx.fillStyle = theme.bg;
   ctx.fill();
-  ctx.strokeStyle = '#ffcc00';
+  ctx.strokeStyle = theme.border;
   ctx.lineWidth = 4 * u;
   ctx.stroke();
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffcc00';
+  ctx.fillStyle = theme.accent;
   ctx.font = font(13 * u, 800, MONO);
-  ctx.fillText(`${q.npc.name.toUpperCase()} PRESENTS: JEOPARDY!`, w / 2, y + 30 * u);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = font(26 * u, 800, 'Georgia, "Times New Roman", serif');
+  const title = calc ? `MEDICAL DOSE CALCULATOR · ${q.step + 1}/${q.questions.length} · ${q.report.name.toUpperCase()}` : `${q.npc.name.toUpperCase()} PRESENTS: JEOPARDY!`;
+  ctx.fillText(title, w / 2, y + 30 * u, bw - 30 * u);
+  ctx.fillStyle = theme.text;
+  ctx.font = theme.clueFont;
   clue.forEach((l, i) => ctx.fillText(l, w / 2, y + (68 + i * 34) * u));
   ctx.textAlign = 'left';
-  ctx.font = font(19 * u, 650);
+  ctx.font = font(19 * u, 650, calc ? MONO : SANS);
   const cy = y + (78 + clue.length * 34) * u;
   q.choices.forEach((c, i) => {
     const ly = cy + i * 34 * u;
     roundRect(ctx, x + 40 * u, ly, 26 * u, 26 * u, 5 * u);
-    ctx.fillStyle = '#ffcc00';
+    ctx.fillStyle = theme.accent;
     ctx.fill();
-    ctx.fillStyle = '#060ce9';
+    ctx.fillStyle = theme.bg;
     ctx.textAlign = 'center';
     ctx.fillText(String(i + 1), x + 53 * u, ly + 20 * u);
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = theme.text;
     ctx.fillText(c, x + 80 * u, ly + 20 * u, bw - 120 * u);
   });
-  bar(ctx, x + 40 * u, y + bh - 22 * u, bw - 80 * u, 8 * u, p.lock / p.lockMax, '#ffcc00', u);
+  bar(ctx, x + 40 * u, y + bh - 22 * u, bw - 80 * u, 8 * u, p.lock / p.lockMax, theme.accent, u);
+}
+
+// Detector calibration: a needle sweeping a gauge, press E in the green band.
+function drawCalibration(ctx, g, o) {
+  const { u, w, h } = o;
+  const m = g.mini, p = g.player;
+  const bw = Math.min(560 * u, w - 40 * u), bh = 190 * u;
+  const x = w / 2 - bw / 2, y = h / 2 - bh / 2;
+  roundRect(ctx, x, y, bw, bh, 8 * u);
+  ctx.fillStyle = '#1b1f27';
+  ctx.fill();
+  ctx.strokeStyle = m.flash > 0 ? (m.result === 'hit' ? '#3cff6e' : '#ff5a5a') : '#9aa1ad';
+  ctx.lineWidth = 3 * u;
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd166';
+  ctx.font = font(13 * u, 800, MONO);
+  ctx.fillText(`DETECTOR CALIBRATION · ${m.report.name.toUpperCase()}`, w / 2, y + 28 * u, bw - 30 * u);
+  const gx = x + 30 * u, gw = bw - 60 * u, gy = y + 62 * u, gh = 30 * u;
+  roundRect(ctx, gx, gy, gw, gh, 4 * u);
+  ctx.fillStyle = '#0b0e13';
+  ctx.fill();
+  ctx.fillStyle = 'rgba(60, 255, 110, 0.55)';
+  ctx.fillRect(gx + m.zone[0] * gw, gy, (m.zone[1] - m.zone[0]) * gw, gh);
+  const nx = gx + needlePos(m) * gw;
+  ctx.fillStyle = '#ff5a3c';
+  ctx.fillRect(nx - 2 * u, gy - 8 * u, 4 * u, gh + 16 * u);
+  ctx.fillStyle = '#e8eef7';
+  ctx.font = font(15 * u, 700);
+  ctx.fillText(`Press E when the needle is in the green band   ${'●'.repeat(m.hits)}${'○'.repeat(m.need - m.hits)}`, w / 2, y + 128 * u, bw - 30 * u);
+  ctx.font = font(12 * u, 600);
+  ctx.fillStyle = '#9fb0c8';
+  ctx.fillText(`misses ${m.misses}/3`, w / 2, y + 150 * u);
+  bar(ctx, x + 30 * u, y + bh - 22 * u, bw - 60 * u, 8 * u, p.lock / p.lockMax, '#ffd166', u);
+}
+
+// Stuck in a conversation: who's talking, what they're saying, how to escape.
+function drawChat(ctx, g, o) {
+  const { u, w, h } = o;
+  const c = g.chat, p = g.player, n = c.npc;
+  const bw = Math.min(600 * u, w - 40 * u);
+  const titles = {
+    blackhole: `${n.name.toUpperCase()}'S GRAVITY WELL`, physics: `${n.name.toUpperCase()} HAS A PHYSICS PROBLEM`,
+    dropin: `${n.name.toUpperCase()} DROPPED IN`, debrief: 'ASTRONAUT DEBRIEF',
+  };
+  const accent = c.kind === 'blackhole' ? '#c9a6ff' : c.kind === 'debrief' ? '#7fd6ff' : '#ffc68a';
+  ctx.font = font(18 * u, 600);
+  const lines = wrap(ctx, `"${c.lines[c.lineIdx]}"`, bw - 40 * u);
+  const bh = (96 + lines.length * 24) * u;
+  const x = w / 2 - bw / 2, y = h / 2 - bh / 2;
+  roundRect(ctx, x, y, bw, bh, 8 * u);
+  ctx.fillStyle = 'rgba(14, 10, 24, 0.92)';
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 3 * u;
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = accent;
+  ctx.font = font(13 * u, 800, MONO);
+  ctx.fillText(titles[c.kind] || n.name.toUpperCase(), w / 2, y + 28 * u, bw - 30 * u);
+  ctx.fillStyle = '#f2f5fa';
+  ctx.font = font(18 * u, 600);
+  lines.forEach((l, i) => ctx.fillText(l, w / 2, y + (56 + i * 24) * u));
+  ctx.font = font(12 * u, 700);
+  ctx.fillStyle = '#9fb0c8';
+  const hint = c.escape ? (c.escort ? 'He is walking you back to his desk. Press E (repeatedly) to excuse yourself.' : 'Press E (repeatedly) to excuse yourself.') : 'Just nod along.';
+  ctx.fillText(hint, w / 2, y + bh - 30 * u, bw - 30 * u);
+  bar(ctx, x + 30 * u, y + bh - 18 * u, bw - 60 * u, 6 * u, p.lock / p.lockMax, accent, u);
 }
 
 // The big red rubber stamp that slams down when a manager approves.
@@ -465,39 +581,56 @@ export function drawMinimap(ctx, g, x0, y0, maxW, maxH, u, time, full) {
   const mw = ts * w.w, mh = ts * w.h;
   const ox = x0 + (maxW - mw) / 2, oy = y0;
   if (!full) panel(ctx, x0 - 8 * u, y0 - 8 * u, maxW + 16 * u, mh + 16 * u, u);
-  const flare = g.flare.state === 'active';
   for (let y = 0; y < w.h; y++) {
     for (let x = 0; x < w.w; x++) {
+      if (!g.explored[y * w.w + x]) continue;
       const t = w.get(x, y);
-      if (!g.explored[y * w.w + x] && t !== T.SHELTER) continue;
-      let c = TILE_COLORS[t] || '#556';
-      if (t === T.WINDOW && flare) c = '#fff1b0';
-      ctx.fillStyle = c;
+      ctx.fillStyle = TILE_COLORS[t] || '#556';
       ctx.fillRect(ox + x * ts, oy + y * ts, Math.ceil(ts), Math.ceil(ts));
-      if (t === T.FLOOR) {
-        const e = w.exposure[y * w.w + x] * g.intensity;
-        if (e > 0.08) {
-          ctx.fillStyle = `rgba(255, 150, 40, ${Math.min(0.55, e * 0.6)})`;
-          ctx.fillRect(ox + x * ts, oy + y * ts, Math.ceil(ts), Math.ceil(ts));
-        }
-      }
     }
   }
   const at = (px, py) => [ox + px * ts, oy + py * ts];
   const seen = (px, py) => g.explored[Math.floor(py) * w.w + Math.floor(px)];
+  const p = g.player;
+  const inSight = (o) => Math.hypot(o.x - p.x, o.y - p.y) < 2.5 || (Math.hypot(o.x - p.x, o.y - p.y) < 12 && w.clearLine(p.x, p.y, o.x, o.y));
   for (const it of g.items) {
     if (it.taken || !seen(it.x, it.y)) continue;
     const [sx, sy] = at(it.x, it.y);
     ctx.fillStyle = it.type === 'coffee' ? '#c58a5a' : it.type === 'memos' ? '#f2f2f2' : '#5ff0ff';
     ctx.fillRect(sx - ts * 0.2, sy - ts * 0.2, ts * 0.4, ts * 0.4);
   }
+  // Stations are on the floor plan from the start: you know where your
+  // work is. Orange = work waiting, green = the console where you submit.
+  for (const s of g.stations) {
+    const [sx, sy] = at(s.x, s.y);
+    const due = s.type === 'srag_console' ? true : g.reports.some((r) => r.task && !r.task.done && TASKS[r.task.type].station === s.type);
+    ctx.fillStyle = s.type === 'srag_console' ? (g.allReady ? '#7dffa0' : '#3f8f5a') : due ? '#ff9d3b' : '#6b717c';
+    ctx.fillRect(sx - ts * 0.4, sy - ts * 0.4, ts * 0.8, ts * 0.8);
+    if (s.type === 'srag_console' && g.allReady) {
+      ctx.strokeStyle = `rgba(125, 255, 160, ${0.5 + 0.5 * Math.sin(time * 6)})`;
+      ctx.lineWidth = 2 * u;
+      ctx.strokeRect(sx - ts * 0.7, sy - ts * 0.7, ts * 1.4, ts * 1.4);
+    }
+  }
   for (const n of g.npcs) {
-    if (!seen(n.x, n.y)) continue;
+    if (!n.present) continue;
+    const roams = n.patrol || n.dropIn;
+    if (roams ? !inSight(n) : !seen(n.x, n.y)) continue;
     const [sx, sy] = at(n.x, n.y);
+    if (n.blackHole && n.chatCd <= 0) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, ts * n.blackHole.radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(120, 60, 200, 0.18)';
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.arc(sx, sy, ts * 0.38, 0, Math.PI * 2);
-    const helps = n.perk && (n.perk === 'jeopardy' ? n.cooldown <= 0 : !n.perkUsed);
-    ctx.fillStyle = n.report ? (n.signed ? '#5fd38d' : '#ffd84a') : helps ? '#6fb7ff' : '#7f8da3';
+    const helps = (n.perk && (n.perk === 'jeopardy' ? n.cooldown <= 0 : !n.perkUsed)) || (n.gives && !n.gave);
+    ctx.fillStyle = n.blackHole && !n.signed ? '#c9a6ff'
+      : n.report ? (n.signed ? '#5fd38d' : '#ffd84a')
+        : n.debrief ? '#7fd6ff'
+          : n.physics || n.dropIn ? '#ffc68a'
+            : helps ? '#6fb7ff' : '#7f8da3';
     ctx.fill();
   }
   for (const b of g.bosses) {
@@ -529,15 +662,6 @@ export function drawMinimap(ctx, g, x0, y0, maxW, maxH, u, time, full) {
       ctx.fillText(b.name, sx, sy - ts * 0.8);
     }
   }
-  if (readyCount(g) === g.reports.length) {
-    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
-      if (w.get(x, y) !== T.SHELTER) continue;
-      ctx.strokeStyle = `rgba(125, 255, 160, ${0.5 + 0.5 * Math.sin(time * 6)})`;
-      ctx.lineWidth = 2 * u;
-      ctx.strokeRect(ox + x * ts - 2 * u, oy + y * ts - 2 * u, ts + 4 * u, ts + 4 * u);
-    }
-  }
-  const p = g.player;
   const [px, py] = at(p.x, p.y);
   const r = Math.max(ts * 0.7, 5 * u);
   ctx.beginPath();
@@ -567,6 +691,6 @@ function drawBigMap(ctx, g, o) {
   drawMinimap(ctx, g, x0, y0, mw, maxH, u, time, true);
   ctx.font = font(13 * u, 600);
   ctx.fillStyle = '#9fb0c8';
-  const legend = '■ yellow: sign-off needed   ■ green: signed off   ■ blue: coworker who can help   ■ cyan: key item   red ring: manager whose stamp you need   orange floor: radiation   cones: what bosses can see   (M to close)';
+  const legend = '● yellow: sign-off needed   ● green: signed off   ● blue: can help   ● purple: Kevin (keep out of the ring)   ■ orange: work station   ■ green: SRAG console   red ring: manager whose stamp you need   cones: what managers can see   (M to close)';
   wrap(ctx, legend, w - 60 * u).forEach((l, i) => ctx.fillText(l, w / 2, y0 + g.world.h * ts + (30 + i * 18) * u));
 }

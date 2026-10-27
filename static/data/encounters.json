@@ -1,11 +1,11 @@
 {
-  "_help": "reports: what must be ready before the shelter lets you in. 'signoff' is a coworker's name, 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs; management reviews add more stamps during the round. Coworkers: location is [column, row] on the map in office.json; 'wants' is optional (they only sign off, or help, once you bring that item: coffee, timesheet, r13, memos or vest); 'look' sets the colours of their sprite (optional extras: long_hair, glasses, beard, headset, tie). Coworkers who aren't a report's sign-off can have a 'perk': freeze_managers, flare_watch, fast_reviews, recalibrate, jeopardy (uses 'quiz'; answer is 1, 2 or 3) or people_person.",
+  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop; 'black_hole', 'physics' and 'drop_in' are the conversation traps.",
   "reports": [
-    { "id": "weekly", "name": "Weekly Report", "signoff": "Nic" },
+    { "id": "weekly", "name": "Weekly Report", "task": "detector", "signoff": "Nic" },
     { "id": "tps", "name": "TPS Report", "signoff": "Katie W." },
-    { "id": "mission_dose", "name": "Mission Dose Report", "signoff": "Kevin" },
-    { "id": "astronaut_dose", "name": "Astronaut Dose Report", "signoff": "John FM" },
-    { "id": "astronaut_risk", "name": "Astronaut Risk Report", "stamps": ["eddie", "clifton"] }
+    { "id": "mission_dose", "name": "Mission Dose Report", "task": "vehicle", "signoff": "Kevin" },
+    { "id": "astronaut_dose", "name": "Astronaut Dose Report", "task": "medical", "signoff": "John FM" },
+    { "id": "astronaut_risk", "name": "Astronaut Risk Report", "task": "astronaut", "stamps": ["eddie", "clifton"] }
   ],
   "npc_encounters": [
     {
@@ -35,7 +35,8 @@
     {
       "location": [22, 14],
       "npc": "Kevin",
-      "look": { "hair": "#e3c26a", "skin": "#e8b48c", "shirt": "#c0504d", "pants": "#3b3b3b" },
+      "title": "Known hazard",
+      "look": { "hair": "#5a3a22", "skin": "#e8b48c", "shirt": "#c0504d", "pants": "#3b3b3b", "mustache": "#5a3a22", "glasses": "thick" },
       "lines": [
         "🗣️ Kevin: Eddie says if I touch the Mars dosimeter again, he’ll reassign me to the printer queue.",
         "🗣️ Kevin: I swear, I’ve had more meaningful conversations with cosmic rays than with Clifton."
@@ -44,6 +45,16 @@
         "item": "coffee",
         "ask": "I can't sign off on a Mission Dose Report before coffee. The break room is in the middle of the floor, behind the elevators.",
         "thanks": "Oh, that's the good stuff. Mission Dose Report: signed."
+      },
+      "black_hole": {
+        "radius": 3.2,
+        "lines": [
+          "So, funny story about the Mars dosimeter. It starts in 2019...",
+          "Did I ever tell you about my commute? There's a left turn you won't believe.",
+          "Hang on, this ties back to the dosimeter thing. Sort of.",
+          "Anyway, where was I? Oh right, the beginning.",
+          "You know what the problem with cosmic rays is? Okay, there are several..."
+        ]
       }
     },
     {
@@ -61,23 +72,34 @@
       }
     },
     {
-      "location": [13, 1],
       "npc": "Ryan R",
       "title": "IT",
       "look": { "hair": "#6b4a2b", "skin": "#e6b391", "shirt": "#2e2f38", "pants": "#3a3f4a", "glasses": true },
+      "patrol": [[16, 21], [17, 19], [10, 19], [10, 4], [20, 4], [20, 19], [17, 19]],
+      "speed": 1.3,
       "lines": [
         "🗣️ Ryan R: Have you tried turning the solar storm off and on again?",
-        "🗣️ Ryan R: The printer isn't broken. It's in orbit. That's a different ticket category."
+        "🗣️ Ryan R: The printer isn't broken. It's a physics problem. Everything is a physics problem."
       ],
       "wants": {
         "item": "memos",
         "ask": "Did you put in a ticket? No ticket, no fix. Write one on a memo and bring it to me.",
         "thanks": "Ticket received. Pushing a mandatory update to every management laptop... now. That buys you about fifteen seconds."
       },
-      "perk": "freeze_managers"
+      "perk": "freeze_managers",
+      "physics": {
+        "home": [16, 21],
+        "lines": [
+          "Okay, so: a muon hits the top of the atmosphere at 0.998c. How long does it think this hallway is?",
+          "Let me just draw this on the whiteboard. You'll love it. It has integrals.",
+          "Ignore air resistance. And the walls. And your deadline.",
+          "So, assume a spherical astronaut in a vacuum...",
+          "Wait, I think the sign is wrong. Let's start over from the top."
+        ]
+      }
     },
     {
-      "location": [29, 9],
+      "location": [17, 22],
       "npc": "Janet",
       "title": "Mission Control Console",
       "look": { "hair": "#c9a36b", "skin": "#f0c8a0", "shirt": "#3d5a80", "pants": "#2d2f3a", "long_hair": true, "headset": true },
@@ -86,7 +108,31 @@
         "🗣️ Janet: We are GO for coffee. NO-GO for Clifton's timesheet audit."
       ],
       "perk": "flare_watch",
-      "perk_line": "I'll patch you into the console loop. You'll hear about flares long before the windows do."
+      "perk_line": "I'll patch you into the console loop. You'll hear about flares early, and I'll get the crew sheltering sooner."
+    },
+    {
+      "location": [19, 22],
+      "npc": "Jennifer M",
+      "title": "Console operations",
+      "look": { "hair": "#1f1a17", "skin": "#c98e62", "shirt": "#2e8b8b", "pants": "#2d2f3a", "long_hair": true },
+      "lines": [
+        "🗣️ Jennifer M: The console room runs on caffeine and checklists.",
+        "🗣️ Jennifer M: If a run gets queued behind one of Ryan's physics jobs, it's queued forever."
+      ],
+      "perk": "sim_priority",
+      "perk_line": "I'll bump your vehicle dose run to the front of the queue. Twice as fast. Don't tell Ryan."
+    },
+    {
+      "location": [21, 22],
+      "npc": "Mark L",
+      "title": "Console IT",
+      "look": { "hair": "#7a5230", "skin": "#e6b391", "shirt": "#3a4a5a", "pants": "#2d2f3a", "glasses": true },
+      "lines": [
+        "🗣️ Mark L: Console IT. If it beeps, it's mine.",
+        "🗣️ Mark L: Fifteen monitors, one keyboard, zero problems. Okay, two problems."
+      ],
+      "perk": "remote_access",
+      "perk_line": "I'll set you up with remote access to the vehicle run. Go do your other stuff; it'll keep cranking."
     },
     {
       "location": [6, 7],
@@ -109,8 +155,22 @@
         "🗣️ Ramona: Badge on, badge facing out. Every dosimeter tells a story. Yours is a thriller.",
         "🗣️ Ramona: I read dosimeters the way other people read tea leaves."
       ],
-      "perk": "recalibrate",
-      "perk_line": "Your badge has drift. Let me swap it for a freshly calibrated one... See? Much better numbers."
+      "gives": "dosimetry",
+      "give_line": "Here are the crew's dosimeter readings. Every badge, every day. Don't spill coffee on them."
+    },
+    {
+      "location": [13, 1],
+      "npc": "Serkan G",
+      "title": "Cosmic radiation modeling",
+      "look": { "hair": "#2b2622", "skin": "#d9a37c", "shirt": "#b28ad6", "pants": "#2d2f3a", "rainbow_jacket": true, "bracelets": true },
+      "lines": [
+        "🗣️ Serkan G: I ran the galactic cosmic ray model again last night. For fun. Want to see the spectra?",
+        "🗣️ Serkan G: My Little Pony taught me friendship is magic. Transport codes taught me shielding is mass.",
+        "🗣️ Serkan G: I'm in my modeling era.",
+        "🗣️ Serkan G: These friendship bracelets? Traded them at the concert. This one says HZE."
+      ],
+      "perk": "gcr_model",
+      "perk_line": "Vehicle dose? I already modeled it. Twice. Here, take my run, it's half done."
     },
     {
       "location": [24, 7],
@@ -145,8 +205,74 @@
       ],
       "perk": "people_person",
       "perk_line": "If Eddie or Clifton corner you, I'll step in and smooth it over. I have people skills."
+    },
+    {
+      "npc": "Astronaut",
+      "title": "Visiting crew member",
+      "look": { "hair": "#3b2a1e", "skin": "#e8b48c", "shirt": "#2f5d9e", "pants": "#2f5d9e", "flightsuit": true },
+      "patrol": [[11, 8], [11, 16], [19, 16], [19, 8]],
+      "speed": 1.5,
+      "lines": [
+        "🗣️ Astronaut: Busy day? I've had busier. In orbit.",
+        "🗣️ Astronaut: You folks keep us safe up there. I tell everyone. Mostly about me, but also about you."
+      ],
+      "debrief": [
+        "Dose? I prefer to think of it as bonus experience.",
+        "I already finished my debrief. And yours, probably.",
+        "My resting heart rate is 38. During launch.",
+        "Let me tell you about my last spacewalk. All seven hours of it.",
+        "Shielding is great. I'm basically shielding for everyone else's morale."
+      ]
+    },
+    {
+      "npc": "Neil Z",
+      "title": "Former manager",
+      "look": { "skin": "#e8b48c", "shirt": "#cfe0f5", "pants": "#3b3b3b", "bald": true, "dress_shirt": true },
+      "lines": [
+        "🗣️ Neil Z: Oh, hi. Just passing through. As one does."
+      ],
+      "drop_in": {
+        "from": [11, 10],
+        "first": 45,
+        "every": [70, 110],
+        "exit": "Anyway, I won't keep you.",
+        "lines": [
+          "Why did the proton get promoted? Positive attitude. ...Anyway.",
+          "Back when I ran this group, we computed dose by hand. Uphill. In a magnetosphere.",
+          "Neutrinos walk into a bar. They pass right through. That's the whole joke.",
+          "I used to manage this group. Now I manage my expectations.",
+          "Have you tried the new coffee? Me neither. Good talk.",
+          "A watched dosimeter never accumulates. Or does it? Think about it."
+        ]
+      }
     }
   ],
+  "ambient": {
+    "titles": ["Dose analyst", "Health physicist", "Space weather forecaster", "Radiation biologist", "Software engineer", "Data analyst", "Console operator", "Contractor", "Intern", "Shielding analyst"],
+    "lines": [
+      "Busy. The dose numbers are due today.",
+      "Has anyone seen my dosimeter? It was on my lanyard a second ago.",
+      "Flare alerts all morning. My coffee's gone cold three times.",
+      "I'm not ignoring you, I'm compiling.",
+      "If Clifton asks, I've been here since seven.",
+      "The proton flux plot looks like my blood pressure.",
+      "Do you know where the good stapler went?",
+      "I'm three meetings behind and it's not even lunch.",
+      "Eddie added a field to the form. The form about forms.",
+      "The printer only works if you say please. Out loud.",
+      "My shielding model converged! Oh, wait. No.",
+      "I brought donuts. They're gone. Story of my life.",
+      "Building 30 called. They want the numbers yesterday.",
+      "Every time someone says 'quick question', a sievert dies.",
+      "I'm on hold with IT. Ryan says it's a physics problem.",
+      "The crew's fine. The crew is always fine. We make sure of that.",
+      "Have you seen Neil? He was here, said something about neutrinos, and left.",
+      "Kevin got me for forty minutes this morning. Stay strong.",
+      "I color-coded my calendar. Now it's just all red.",
+      "Lunch? I don't know her.",
+      "Does anyone know the Wi-Fi password? It changed. Again."
+    ]
+  },
   "puns": [
     "🗣️ You hear someone mutter: ‘I was told there would be no ionizing radiation...’",
     "🗣️ A sigh echoes from the cubicle: ‘If someone steals my lead shielding again, I’m gonna burn this place down.’",
@@ -155,7 +281,10 @@
     "🗣️ Someone’s yelling: ‘PC Load Letter?! What does that even mean in a vacuum?!’",
     "🗣️ Overheard: ‘Ryan, the printer's doing it again.’ ‘Did you file a ticket?’",
     "🗣️ From the cubicles: ‘What is... a coronal mass ejection?’ ‘Correct!’",
-    "🗣️ Someone mutters: ‘Steve put the coffee budget in a pivot table and now nobody's allowed coffee.’"
+    "🗣️ Someone mutters: ‘Steve put the coffee budget in a pivot table and now nobody's allowed coffee.’",
+    "🗣️ From the console room: ‘Serkan, is that a pony on your jacket?’ ‘It's a cutie mark. Also, your shielding model is wrong.’",
+    "🗣️ Someone whispers: ‘Don't make eye contact with Kevin. Don't make eye contact with Kevin.’",
+    "🗣️ Overheard near a whiteboard: ‘...and that's why the muon thinks the hallway is shorter.’"
   ],
   "bosses": {
     "eddie": {

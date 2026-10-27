@@ -1,6 +1,6 @@
-// The office map: tiles, collision, line of sight, pathfinding and the
-// radiation exposure of every floor tile. No DOM access, so the test harness
-// in tools/ can run it under Node.
+// The office map: tiles, floor zones, collision, line of sight and
+// pathfinding. No DOM access, so the test harness in tools/ can run it under
+// Node.
 
 export const T = {
   FLOOR: 0,
@@ -25,10 +25,14 @@ export const LEGEND = {
   B: T.WHITEBOARD,
   R: T.SERVER,
   V: T.VENDING,
-  S: T.SHELTER,
+  S: T.SHELTER, // the stairwell door in the core
   O: T.OFFICE,
   E: T.ELEVATOR,
 };
+
+// Floor zones (office.json "zones"): decide the floor texture and make
+// doorways and rooms easy to read.
+export const ZONES = { c: 0, o: 1, d: 2, k: 3, i: 4, l: 5, p: 6 };
 
 const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -59,7 +63,32 @@ export class World {
         this.tiles[y * this.w + x] = t;
       }
     }
-    this.exposure = this.computeExposure();
+    this.zones = new Uint8Array(this.w * this.h);
+    this.doorAdj = new Uint8Array(this.w * this.h);
+  }
+
+  // rows: strings like the map, one zone letter per floor tile (see ZONES).
+  // Wall tiles next to a doorway get flagged so they can show a door frame.
+  setZones(rows, warn = () => {}) {
+    if (!Array.isArray(rows)) return;
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        const ch = (rows[y] || '')[x];
+        const z = ZONES[ch];
+        if (z === undefined && ch !== '#' && ch !== undefined) warn(`office.json zones: unknown zone "${ch}" at ${x},${y}`);
+        this.zones[y * this.w + x] = z ?? 0;
+      }
+    }
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (!this.isWall(x, y)) continue;
+        const nextToDoor = DIRS4.some(([dx, dy]) => {
+          const nx = x + dx, ny = y + dy;
+          return !this.isWall(nx, ny) && this.zones[ny * this.w + nx] === ZONES.d;
+        });
+        if (nextToDoor) this.doorAdj[y * this.w + x] = 1;
+      }
+    }
   }
 
   get(x, y) {
@@ -205,36 +234,5 @@ export class World {
       }
     }
     return seen;
-  }
-
-  // How exposed each floor tile is to the windows (0..1). Windows within six
-  // tiles with a clear line to them contribute, falling off with distance.
-  computeExposure() {
-    const { w, h } = this;
-    const exp = new Float32Array(w * h);
-    const windows = [];
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (this.get(x, y) === T.WINDOW) windows.push([x, y]);
-    let max = 0;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        if (this.isWall(x, y)) continue;
-        let e = 0;
-        for (const [wx, wy] of windows) {
-          const d = Math.hypot(wx - x, wy - y);
-          if (d > 6) continue;
-          if (this.clearLine(x + 0.5, y + 0.5, wx + 0.5, wy + 0.5)) e += 1 / (1 + d * d * 0.5);
-        }
-        exp[y * w + x] = e;
-        if (e > max) max = e;
-      }
-    }
-    if (max > 0) for (let i = 0; i < exp.length; i++) exp[i] /= max;
-    return exp;
-  }
-
-  exposureAt(px, py) {
-    const x = Math.floor(px), y = Math.floor(py);
-    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return 0;
-    return this.exposure[y * this.w + x];
   }
 }

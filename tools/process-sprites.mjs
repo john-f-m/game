@@ -19,6 +19,33 @@ const CHARACTERS = ['eddie', 'clifton'];
 const SCALE = 2; // integer downscale factor
 const PAD = 4; // source pixels of padding around the shared crop box
 
+// Colour tweaks applied to the original art: Clifton's golden hair becomes
+// grey. His hair and skin are almost the same hue, so only golden pixels
+// inside each frame's hair area are touched: rectangles [x0, y0, x1, y1] in
+// original-frame pixels (above the hairline in front views, the back of the
+// head between the ears in back views). A rectangle marked 'strict' (the
+// hairline band, where hair meets forehead) only takes the most golden or
+// most saturated pixels, which skin never is.
+const RECOLOR = {
+  clifton: {
+    hue: [28, 58], minSat: 0.35, minVal: 0.3,
+    regions: {
+      0: [[0, 0, 341, 118], [0, 118, 341, 142, 'strict']],
+      1: [[0, 0, 341, 104], [0, 104, 341, 130, 'strict']],
+      2: [[0, 0, 341, 108], [0, 108, 341, 136, 'strict']],
+      3: [[0, 0, 205, 222], [0, 0, 341, 125]],
+      4: [[95, 0, 255, 226], [0, 0, 341, 128]],
+      5: [[195, 0, 341, 226], [0, 0, 341, 118], [0, 118, 195, 140, 'strict']],
+    },
+  },
+};
+
+// Photos turned into wall posters: [x, y, width, height] crop of the source,
+// shrunk to the 56x44 picture area of a wall texture (see textures.js).
+const POSTERS = [
+  { src: join(ROOT, 'IMG_0238.jpg'), out: join(OUT, 'posters', 'for-the-children.png'), crop: [590, 20, 900, 707] },
+];
+
 function probe(file) {
   const out = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
     '-show_entries', 'stream=width,height', '-of', 'csv=p=0', file]).toString();
@@ -143,6 +170,37 @@ function backdropMask(img) {
   return { mask, bg, threshold };
 }
 
+function recolor(img, mask, cfg, frame) {
+  const { w, h, rgb } = img;
+  // 0 = not hair area, 1 = hair area, 2 = strict hairline band
+  const area = (x, y) => {
+    let a = 0;
+    for (const [x0, y0, x1, y1, strict] of cfg.regions[frame] || []) {
+      if (x >= x0 && x < x1 && y >= y0 && y < y1) { if (!strict) return 1; a = 2; }
+    }
+    return a;
+  };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      const a = mask[p] ? 0 : area(x, y);
+      if (!a) continue;
+      const r = rgb[p * 3], g = rgb[p * 3 + 1], b = rgb[p * 3 + 2];
+      const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+      if (!mx || !d) continue;
+      let hue = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+      if (hue < 0) hue += 360;
+      const s = d / mx;
+      if (hue < cfg.hue[0] || hue > cfg.hue[1] || s < cfg.minSat || mx / 255 < cfg.minVal) continue;
+      if (a === 2 && !((hue >= 39 && s >= 0.45) || s >= 0.78)) continue;
+      const grey = Math.min(255, (0.3 * r + 0.59 * g + 0.11 * b) * 0.92 + 18);
+      rgb[p * 3] = Math.round(grey * 0.97);
+      rgb[p * 3 + 1] = Math.round(grey * 0.98);
+      rgb[p * 3 + 2] = Math.round(Math.min(255, grey * 1.04));
+    }
+  }
+}
+
 function bbox(mask, w, h) {
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (let y = 0; y < h; y++) {
@@ -189,6 +247,7 @@ for (const name of CHARACTERS) {
   const frames = files.map((f) => {
     const img = decode(join(dir, f));
     const { mask, bg, threshold } = backdropMask(img);
+    if (RECOLOR[name]) recolor(img, mask, RECOLOR[name], Number(f.match(/(\d+)\.png$/)[1]));
     return { f, img, mask, bg, threshold };
   });
 
@@ -208,4 +267,11 @@ for (const name of CHARACTERS) {
     encode(join(outDir, fr.f), small.w, small.h, small.rgba);
     console.log(`${name}/${fr.f}: backdrop rgb(${fr.bg.join(',')}) threshold ${fr.threshold.toFixed(1)} -> ${small.w}x${small.h}`);
   }
+}
+
+for (const p of POSTERS) {
+  const [x, y, w, h] = p.crop;
+  mkdirSync(dirname(p.out), { recursive: true });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', p.src, '-vf', `crop=${w}:${h}:${x}:${y},scale=56:44:flags=area`, '-frames:v', '1', p.out]);
+  console.log(`poster: ${p.out.slice(ROOT.length + 1)} (56x44)`);
 }

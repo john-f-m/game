@@ -116,12 +116,25 @@ async function boot() {
   try {
     const [office, encounters] = await Promise.all([loadJSON('data/office.json'), loadJSON('data/encounters.json')]);
     data = { office, encounters };
-    const textures = buildTextures((encounters.npc_encounters || []).map((n) => n.look || {}), office.window_view);
-    raycaster = new Raycaster(textures, await loadBossSprites());
-    icons = Object.fromEntries(Object.entries(textures.items).map(([k, t]) => [k, texToCanvas(t)]));
-    demo = createGame({ office, encounters, seed: 7 });
+    // The demo round behind the title screen also tells us everyone's look,
+    // including the unnamed coworkers, so sprites can be built for all.
+    demo = createGame({ office, encounters, seed: 7, warn: (m) => console.warn(m) });
     demo.player.x = 15.5;
     demo.player.y = 5.5;
+    let poster = null;
+    try {
+      poster = await loadTex(new URL('sprites/posters/for-the-children.png', STATIC).href);
+    } catch (e) {
+      console.warn("Poster image didn't load; walls go without it.", e);
+    }
+    const textures = buildTextures(demo.npcs.map((n) => n.look), office.window_view, { poster });
+    raycaster = new Raycaster(textures, await loadBossSprites());
+    icons = Object.fromEntries(Object.entries(textures.items).map(([k, t]) => [k, texToCanvas(t)]));
+    try {
+      drawHazardPortraits(textures, demo);
+    } catch (e) {
+      console.warn("Couldn't draw the hazard portraits.", e); // decorative only; never block the game
+    }
     applySettings();
     setupTitle();
     showScreen(ui.title);
@@ -160,7 +173,7 @@ function setupTitle() {
   const signers = new Set((encounters.reports || []).map((r) => r.signoff).filter(Boolean));
   const people = encounters.npc_encounters || [];
   $('coworkers').textContent = listNames(people.filter((n) => signers.has(n.npc)).map((n) => n.npc));
-  $('helpers').textContent = listNames(people.filter((n) => !signers.has(n.npc)).map((n) => (n.title ? `${n.npc} (${n.title})` : n.npc)));
+  $('helpers').textContent = listNames(people.filter((n) => n.perk && !signers.has(n.npc)).map((n) => (n.title ? `${n.npc} (${n.title})` : n.npc)));
   $('report-list').textContent = listNames((encounters.reports || []).map((r) => r.name));
   const box = $('difficulty');
   box.textContent = '';
@@ -182,6 +195,21 @@ function setupTitle() {
     });
     box.append(b);
   }
+}
+
+// Title-screen portraits for the coworker hazards (Kevin, Ryan), drawn from
+// their in-game sprites into <canvas data-hazard="Name"> elements.
+function drawHazardPortraits(textures, game) {
+  document.querySelectorAll('canvas[data-hazard]').forEach((c) => {
+    const n = game.npcs.find((x) => x.name === c.dataset.hazard);
+    const t = n && textures.people[n.index];
+    if (!t) return;
+    const s = Math.floor(Math.min(c.width / t.w, c.height / t.h));
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = false;
+    cx.clearRect(0, 0, c.width, c.height);
+    cx.drawImage(texToCanvas(t), (c.width - t.w * s) / 2, c.height - t.h * s, t.w * s, t.h * s);
+  });
 }
 
 // Hazard portraits on the title screen turn slowly through every angle.
@@ -286,7 +314,9 @@ function endRound() {
     ['Reports ready', `${r.reports}/${game.reports.length}`],
     ['Approval stamps', `${s.stamps}`],
     ['Time to spare', r.won ? formatClock(r.timeLeft) : '-'],
-    ['Radiation dose', `${r.dose.toFixed(1)} mSv`],
+    ['Crew dose', `${r.crewDose.toFixed(1)} mSv`],
+    ['Tasks done', `${s.tasks}`],
+    ['Trapped in conversations', `${s.trapped}`],
     ['Sanity left', `${Math.round(r.sanity)}`],
     ['Times caught', `${s.catches}`],
     ['Memos thrown / hit', `${s.memosThrown} / ${s.memosHit}`],

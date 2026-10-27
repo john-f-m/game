@@ -111,6 +111,14 @@ code { font-family: var(--mono); background: rgba(255, 255, 255, 0.08); padding:
   flex: none;
 }
 .hazard p { margin: 0; color: var(--muted); font-size: 14px; }
+.hazard canvas {
+  width: 76px;
+  height: 90px;
+  image-rendering: pixelated;
+  background: radial-gradient(circle at 50% 70%, rgba(255, 255, 255, 0.08), transparent 70%);
+  border-radius: 8px;
+  flex: none;
+}
 
 .diffs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0 14px; }
 .diff {

@@ -183,7 +183,8 @@ export class Sound {
   update(dt, game) {
     if (!this.ctx || !game) return;
     const playing = game.status === 'playing';
-    const rate = playing ? Math.min(45, 0.6 + game.player.doseRate * 9) : 0;
+    // The console's radiation feed for the crew: ticks faster during flares.
+    const rate = playing ? Math.min(30, 0.6 + (game.crewRate || 0) * 60) : 0;
     this.geigerAcc += dt * rate * (0.5 + Math.random());
     while (this.geigerAcc >= 1) {
       this.geigerAcc -= 1;

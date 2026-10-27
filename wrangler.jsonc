@@ -1,7 +1,6 @@
-// Cloudflare Worker that serves the game's static files.
-// homebodi.ai is attached as a custom domain, so this Worker answers for the
-// whole domain: the game lives at /game/, and / redirects there.
-// Build with `npm run build` (writes dist/), deploy with `npx wrangler deploy`.
+// Cloudflare Worker that serves the game's static files at homebodi.ai/game/.
+// It only answers the two routes below; the rest of homebodi.ai is untouched.
+// Build with `npm run build` (writes dist/game/), deploy with `npx wrangler deploy`.
 {
   "name": "cosmic-cubicle-combatants",
   "compatibility_date": "2025-09-01",
@@ -12,6 +11,7 @@
     "not_found_handling": "none"
   },
   "routes": [
-    { "pattern": "homebodi.ai", "custom_domain": true }
+    { "pattern": "homebodi.ai/game", "zone_name": "homebodi.ai" },
+    { "pattern": "homebodi.ai/game/*", "zone_name": "homebodi.ai" }
   ]
 }

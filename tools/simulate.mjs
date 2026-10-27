@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Headless test run of the real game code (no browser needed):
 //   1. validates the data files (everything on open, reachable floor)
-//   2. lets a bot play full rounds on every difficulty
+//   2. lets bots play full rounds on every difficulty
 //   3. fuzzes random input to catch crashes / NaN / wall clipping
-//   4. renders a few frames to PNG (needs ffmpeg; skipped otherwise)
+//   4. checks every activity and coworker mechanic on its own
+//   5. renders a few frames to PNG (needs ffmpeg; skipped otherwise)
 //
 // Usage: npm test            (or: node tools/simulate.mjs --frames <dir>)
 
@@ -11,10 +12,11 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createGame, updateGame, DIFFICULTY, readyCount, pendingStamps, hasItem, angleDiff } from '../static/scripts/game.js';
+import {
+  createGame, updateGame, DIFFICULTY, TASKS, readyCount, reportReady, pendingStamps, hasItem, angleDiff, needlePos, taskReport,
+} from '../static/scripts/game.js';
 import { buildTextures, Tex } from '../static/scripts/textures.js';
 import { Raycaster } from '../static/scripts/raycaster.js';
-import { T } from '../static/scripts/world.js';
 import { BOSS_SPRITES, spritePath } from '../static/scripts/sprite-config.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,6 +25,8 @@ const encounters = JSON.parse(readFileSync(join(ROOT, 'static/data/encounters.js
 const DT = 1 / 60;
 let failures = 0;
 const fail = (msg) => { failures++; console.log(`  FAIL ${msg}`); };
+const expect = (cond, msg) => (cond ? console.log(`  ok: ${msg}`) : fail(msg));
+const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // ------------------------------------------------------------ 1. data --
 console.log('1. Data files');
@@ -35,89 +39,114 @@ console.log('1. Data files');
   const ok = (x, y) => reach[Math.floor(y) * w.w + Math.floor(x)];
   const nextTo = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ok(x + dx, y + dy));
   g.items.forEach((it) => ok(it.x, it.y) || fail(`item ${it.type} unreachable`));
-  g.npcs.forEach((n) => nextTo(n.x, n.y) || fail(`${n.name} cannot be reached`));
+  g.npcs.forEach((n) => (n.patrol ? n.patrol.every((wp) => ok(wp.x, wp.y)) : nextTo(n.x, n.y)) || fail(`${n.name} cannot be reached`));
+  g.stations.forEach((s) => nextTo(s.x, s.y) || fail(`station ${s.type} cannot be reached`));
   g.bosses.forEach((b) => b.patrol.forEach((wp, i) => ok(wp.x, wp.y) || fail(`${b.id} waypoint ${i} unreachable`)));
-  let shelter = false;
-  for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) if (w.get(x, y) === T.SHELTER && nextTo(x + 0.5, y + 0.5)) shelter = true;
-  if (!shelter) fail('no reachable shelter door');
-  for (const n of g.npcs) if (n.wants && !g.items.some((it) => it.type === n.wants.item)) fail(`${n.name} wants ${n.wants.item}, which is not on the map`);
-  console.log(`  ${g.npcs.length} coworkers, ${g.bosses.length} bosses, ${g.items.length} items, ${failures ? 'problems above' : 'all placed on reachable floor'}`);
+  if (!g.stations.some((s) => s.type === 'srag_console')) fail('no SRAG console to submit at');
+  for (const n of g.npcs) if (n.wants && !g.items.some((it) => it.type === n.wants.item) && !g.npcs.some((m) => m.gives === n.wants.item) && n.wants.item !== 'memos') fail(`${n.name} wants ${n.wants.item}, which nobody can get`);
+  console.log(`  ${g.npcs.length} people (${g.npcs.filter((n) => !n.ambient).length} named), ${g.bosses.length} managers, ${g.stations.length} stations, ${g.items.length} items${failures ? '' : ', all reachable'}`);
 }
 
 // ------------------------------------------------------------- 2. bot --
 // A bot that knows where everything is and walks the shortest paths. It
-// ignores stealth entirely (worst case) but throws memos at bosses that
-// are chasing it, and drinks coffee when its sanity runs low.
+// ignores stealth (worst case) but throws memos at chasing managers, asks
+// them for stamps when needed, plays the minigames correctly and mashes E
+// to escape conversations.
+function stepsFor(g, bot) {
+  const p = g.player, steps = [];
+  const station = (type) => g.stations.find((s) => s.type === type);
+  for (const r of g.reports) {
+    if (reportReady(r)) continue;
+    const t = r.task;
+    if (t && !t.done) {
+      if (t.type === 'astronaut') {
+        const a = g.npcs.find((n) => n.debrief);
+        steps.push({ key: `${r.id}:astro`, target: a, act: 'talk', moving: true });
+      } else if (t.type === 'medical' && !hasItem(p, 'dosimetry')) {
+        steps.push({ key: `${r.id}:dosimetry`, target: g.npcs.find((n) => n.gives === 'dosimetry'), act: 'talk' });
+      } else if (t.type === 'vehicle' && t.running) {
+        steps.push({ key: `${r.id}:wait`, target: station('vehicle_sim'), act: 'wait', wait: true });
+      } else {
+        steps.push({ key: `${r.id}:task`, target: station(TASKS[t.type].station), act: 'use' });
+      }
+      continue;
+    }
+    const n = r.signoff;
+    if (n && !n.signed) {
+      if (n.wants && !hasItem(p, n.wants.item)) {
+        if (!bot.item || bot.item.taken || bot.item.type !== n.wants.item) {
+          bot.item = g.items.filter((i) => i.type === n.wants.item && !i.taken).sort((a, b) => near(a, p) - near(b, p))[0];
+        }
+        if (bot.item) steps.push({ key: `${r.id}:item`, target: bot.item, act: 'walk' });
+      } else steps.push({ key: `${r.id}:sign`, target: n, act: 'talk' });
+      continue;
+    }
+    for (const id of r.stamps) {
+      if (r.stamped.has(id)) continue;
+      const b = g.bosses.find((x) => x.id === id);
+      if (b.reviewing <= 0) steps.push({ key: `stamp:${id}`, target: b, act: 'boss', moving: true });
+    }
+  }
+  if (!steps.length && readyCount(g) === g.reports.length) steps.push({ key: 'submit', target: station('srag_console'), act: 'use' });
+  return steps;
+}
+
 function botInput(g, bot) {
   const p = g.player, w = g.world;
-  const input = { forward: 0, strafe: 0, turn: 0, look: 0, run: false, interact: false, throw: false, drink: false };
-  if (p.lock > 0) return input;
-
+  const input = { forward: 0, strafe: 0, turn: 0, look: 0, run: false, interact: false, throw: false, drink: false, answer: 0 };
+  if (p.lock > 0) {
+    if (g.quiz) input.answer = g.quiz.answer + 1;
+    else if (g.mini) {
+      const v = needlePos(g.mini);
+      if (v > g.mini.zone[0] + 0.02 && v < g.mini.zone[1] - 0.02 && g.t - bot.lastTap > 0.3) { input.interact = true; bot.lastTap = g.t; }
+    } else if (g.chat && g.chat.escape && g.t - bot.lastTap > 0.25) { input.interact = true; bot.lastTap = g.t; }
+    return input;
+  }
   const keepCoffee = g.npcs.some((n) => n.report && !n.signed && n.wants?.item === 'coffee') ? 1 : 0;
   if (p.sanity < 50 && p.coffee > keepCoffee) input.drink = true;
 
-  const chaser = g.bosses.find((b) => b.state === 'chase' && b.stun <= 0 && Math.hypot(b.x - p.x, b.y - p.y) < 4 && w.clearLine(p.x, p.y, b.x, b.y));
-  // A chasing manager whose stamp we need: turn around and ask for it.
+  const chaser = g.bosses.find((b) => b.state === 'chase' && b.stun <= 0 && near(b, p) < 4 && w.clearLine(p.x, p.y, b.x, b.y));
   if (chaser && pendingStamps(g, chaser.id).length) {
     input.look = angleDiff(Math.atan2(chaser.y - p.y, chaser.x - p.x), p.a);
-    if (Math.abs(input.look) < 0.1 && Math.hypot(chaser.x - p.x, chaser.y - p.y) < 1.5 && g.t - bot.lastInteract > 0.5) { input.interact = true; bot.lastInteract = g.t; }
+    if (Math.abs(input.look) < 0.1 && near(chaser, p) < 1.5 && g.t - bot.lastInteract > 0.5) { input.interact = true; bot.lastInteract = g.t; }
     return input;
   }
   if (chaser && p.memos > 0) {
-    const want = Math.atan2(chaser.y - p.y, chaser.x - p.x);
-    input.look = angleDiff(want, p.a);
+    input.look = angleDiff(Math.atan2(chaser.y - p.y, chaser.x - p.x), p.a);
     if (Math.abs(input.look) < 0.05 && g.t - bot.lastThrow > 0.6) { input.throw = true; bot.lastThrow = g.t; }
     return input;
   }
 
-  // Pick the current goal.
-  let goal = null, face = null, act = false;
-  // Only coworkers who sign off on a report; the helpers are optional.
-  const signers = g.npcs.filter((n) => n.report && !n.signed);
-  const todo = signers.find((n) => !n.wants || hasItem(p, n.wants.item)) || signers[0];
-  if (todo && todo.wants && !hasItem(p, todo.wants.item)) {
-    // Commit to one item until it's gone, so the target doesn't flip-flop.
-    if (!bot.item || bot.item.taken || bot.item.type !== todo.wants.item) {
-      bot.item = g.items.filter((i) => i.type === todo.wants.item && !i.taken)
-        .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
-    }
-    if (bot.item) goal = { x: bot.item.x, y: bot.item.y };
-  } else if (todo) {
-    goal = { x: todo.x, y: todo.y }; face = goal; act = Math.hypot(todo.x - p.x, todo.y - p.y) < 1.4;
+  // Commit to one step at a time (nearest first; waiting on the vehicle
+  // run only when nothing else is left).
+  const steps = stepsFor(g, bot);
+  let step = steps.find((s) => s.key === bot.stepKey);
+  if (!step) {
+    const work = steps.filter((s) => !s.wait);
+    step = (work.length ? work : steps).sort((a, b) => near(a.target, p) - near(b.target, p))[0];
+    bot.stepKey = step?.key;
   }
-  // Managers: go to the nearest one whose stamp is still needed (first,
-  // if they're close by).
-  const boss = g.bosses.filter((b) => pendingStamps(g, b.id).length && b.reviewing <= 0)
-    .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
-  if (boss && (!goal || Math.hypot(boss.x - p.x, boss.y - p.y) < 5)) {
-    goal = { x: boss.x, y: boss.y, key: `boss:${boss.id}` }; face = goal; act = Math.hypot(boss.x - p.x, boss.y - p.y) < 1.4 && boss.stun <= 0;
-  }
-  if (!goal && readyCount(g) === g.reports.length) {
-    for (let y = 0; y < w.h && !goal; y++) for (let x = 0; x < w.w; x++) {
-      if (w.get(x, y) !== T.SHELTER) continue;
-      const n = [[0, 1], [0, -1], [1, 0], [-1, 0]].find(([dx, dy]) => !w.isWall(x + dx, y + dy));
-      if (!n) continue;
-      goal = { x: x + n[0] + 0.5, y: y + n[1] + 0.5 }; face = { x: x + 0.5, y: y + 0.5 };
-      act = Math.hypot(goal.x - p.x, goal.y - p.y) < 0.4;
-      break;
-    }
-  }
-  if (!goal) return input;
-  // Explorer mode: before each new objective, wander to a couple of random
-  // spots first, like a player who doesn't know the map yet.
-  const key = goal.key || `${Math.floor(goal.x)},${Math.floor(goal.y)}`;
-  if (bot.explore && key !== bot.goalKey) {
-    bot.goalKey = key;
-    bot.detours = Array.from({ length: 2 }, () => bot.floor[Math.floor(bot.rand() * bot.floor.length)]);
+  if (!step || !step.target) return input;
+  let goal = { x: step.target.x, y: step.target.y }, act = false;
+  const d = near(step.target, p);
+  if (step.act === 'walk') act = false;
+  else if (step.act === 'wait') { if (d < 1.4) return input; }
+  else act = d < (step.act === 'boss' ? 1.4 : 1.3);
+
+  // Explorer mode: before each new step, wander to a couple of random spots.
+  if (bot.explore && step.key !== bot.goalKey) {
+    bot.goalKey = step.key;
+    bot.detours = [bot.floor[Math.floor(bot.rand() * bot.floor.length)]];
   }
   if (bot.detours?.length) {
-    const d = bot.detours[0];
-    if (Math.hypot(d.x - p.x, d.y - p.y) < 0.7) bot.detours.shift();
-    else { goal = d; act = false; }
+    const dt = bot.detours[0];
+    if (near(dt, p) < 0.7) bot.detours.shift();
+    else { goal = dt; act = false; }
   }
   if (act) {
-    input.look = angleDiff(Math.atan2(face.y - p.y, face.x - p.x), p.a);
+    input.look = angleDiff(Math.atan2(step.target.y - p.y, step.target.x - p.x), p.a);
     if (Math.abs(input.look) < 0.1 && g.t - bot.lastInteract > 0.5) { input.interact = true; bot.lastInteract = g.t; }
+    if (d > 1.0) input.forward = 0.3;
     return input;
   }
   const path = w.findPath(Math.floor(p.x), Math.floor(p.y), Math.floor(goal.x), Math.floor(goal.y));
@@ -129,18 +158,22 @@ function botInput(g, bot) {
   return input;
 }
 
+function newBot(g, mode, seed) {
+  const reach = g.world.reachable(Math.floor(g.player.x), Math.floor(g.player.y));
+  const floor = [];
+  reach.forEach((v, i) => v && floor.push({ x: (i % g.world.w) + 0.5, y: Math.floor(i / g.world.w) + 0.5 }));
+  let r = seed * 48271;
+  return { lastThrow: -9, lastInteract: -9, lastTap: -9, explore: mode === 'explorer', floor, rand: () => ((r = (r * 16807) % 2147483647) / 2147483647) };
+}
+
 console.log('2. Bot playthroughs (bots ignore stealth; "explorer" wanders like a first-time player)');
 for (const [mode, diff] of [['expert', 'intern'], ['expert', 'analyst'], ['expert', 'director'], ['explorer', 'intern'], ['explorer', 'analyst'], ['explorer', 'director']]) {
   const runs = [];
   for (let seed = 1; seed <= 24; seed++) {
     const g = createGame({ office, encounters, difficulty: diff, seed });
-    const reach = g.world.reachable(Math.floor(g.player.x), Math.floor(g.player.y));
-    const floor = [];
-    reach.forEach((v, i) => v && floor.push({ x: (i % g.world.w) + 0.5, y: Math.floor(i / g.world.w) + 0.5 }));
-    let r = seed * 48271;
-    const bot = { lastThrow: -9, lastInteract: -9, explore: mode === 'explorer', floor, rand: () => ((r = (r * 16807) % 2147483647) / 2147483647) };
+    const bot = newBot(g, mode, seed);
     while (g.status === 'playing' && g.t < DIFFICULTY[diff].time + 30) updateGame(g, botInput(g, bot), DT);
-    if (g.status === 'playing') fail(`${diff} seed ${seed}: bot stuck (${readyCount(g)} reports ready, at ${g.player.x.toFixed(1)},${g.player.y.toFixed(1)})`);
+    if (g.status === 'playing') fail(`${diff} seed ${seed}: bot stuck (${readyCount(g)} reports ready, at ${g.player.x.toFixed(1)},${g.player.y.toFixed(1)}, step ${bot.stepKey})`);
     runs.push(g);
   }
   const won = runs.filter((g) => g.status === 'won');
@@ -148,9 +181,9 @@ for (const [mode, diff] of [['expert', 'intern'], ['expert', 'analyst'], ['exper
   const reasons = {};
   runs.filter((g) => g.result && !g.result.won).forEach((g) => { reasons[g.result.reason] = (reasons[g.result.reason] || 0) + 1; });
   console.log(`  ${mode.padEnd(8)} ${DIFFICULTY[diff].label.padEnd(8)} won ${won.length}/${runs.length}` +
-    ` | time left ${avg(won, (g) => g.timeLeft).toFixed(0)}s | dose ${avg(runs, (g) => g.player.dose).toFixed(1)}` +
-    ` | catches ${avg(runs, (g) => g.stats.catches).toFixed(1)} | stamps ${avg(runs, (g) => g.stats.stamps).toFixed(1)}` +
-    ` | score ${avg(won, (g) => g.result.score).toFixed(0)} | losses ${JSON.stringify(reasons)}`);
+    ` | time left ${avg(won, (g) => g.timeLeft).toFixed(0)}s | crew dose ${avg(runs, (g) => g.crewDose).toFixed(1)}` +
+    ` | catches ${avg(runs, (g) => g.stats.catches).toFixed(1)} | trapped ${avg(runs, (g) => g.stats.trapped).toFixed(1)}` +
+    ` | stamps ${avg(runs, (g) => g.stats.stamps).toFixed(1)} | score ${avg(won, (g) => g.result.score).toFixed(0)} | losses ${JSON.stringify(reasons)}`);
 }
 
 // ------------------------------------------------------------ 3. fuzz --
@@ -171,19 +204,21 @@ console.log('3. Random-input fuzzing');
       try { updateGame(g, input, DT); } catch (e) { fail(`seed ${seed} frame ${i}: ${e.stack}`); break; }
       frames++;
       const p = g.player;
-      const bad = [p.x, p.y, p.a, p.dose, p.sanity, g.timeLeft].some((v) => !Number.isFinite(v));
-      if (bad) { fail(`seed ${seed} frame ${i}: non-finite player state`); break; }
+      const bad = [p.x, p.y, p.a, g.crewDose, p.sanity, g.timeLeft].some((v) => !Number.isFinite(v));
+      if (bad) { fail(`seed ${seed} frame ${i}: non-finite state`); break; }
       for (const [ox, oy] of [[0, 0], [0.2, 0], [-0.2, 0], [0, 0.2], [0, -0.2]]) {
         if (g.world.isWallAt(p.x + ox, p.y + oy)) { fail(`seed ${seed} frame ${i}: player inside wall at ${p.x.toFixed(2)},${p.y.toFixed(2)}`); i = 1e9; break; }
       }
-      for (const b of g.bosses) if (g.world.isWallAt(b.x, b.y) || !Number.isFinite(b.x)) { fail(`seed ${seed}: ${b.id} inside wall`); i = 1e9; break; }
+      for (const b of [...g.bosses, ...g.npcs.filter((n) => n.present)]) {
+        if (g.world.isWallAt(b.x, b.y) || !Number.isFinite(b.x)) { fail(`seed ${seed}: ${b.id || b.name} inside wall`); i = 1e9; break; }
+      }
     }
   }
   console.log(`  ${frames} frames simulated`);
 }
 
-// ----------------------------------------------------------- 4. perks --
-console.log('4. Coworker perks');
+// --------------------------------------------- 4. activities and people --
+console.log('4. Activities and coworkers');
 {
   const fresh = () => {
     const g = createGame({ office, encounters, seed: 11 });
@@ -191,64 +226,137 @@ console.log('4. Coworker perks');
     g.bosses.forEach((b) => Object.assign(b, { x: 25.5, y: 21.5, satisfied: 999 }));
     return g;
   };
-  // Stand next to a coworker, face them, press E.
-  const visit = (g, name) => {
-    const n = g.npcs.find((x) => x.name === name);
-    if (!n) { fail(`no coworker named ${name}`); return null; }
-    const spot = [[0, 1], [0, -1], [1, 0], [-1, 0]].map(([dx, dy]) => [n.x + dx, n.y + dy])
+  const standAt = (g, o) => {
+    const spot = [[0, 1], [0, -1], [1, 0], [-1, 0]].map(([dx, dy]) => [o.x + dx, o.y + dy])
       .find(([x, y]) => g.world.walkable(Math.floor(x), Math.floor(y)));
-    Object.assign(g.player, { x: spot[0], y: spot[1], a: Math.atan2(n.y - spot[1], n.x - spot[0]), lock: 0 });
-    updateGame(g, { interact: true }, DT);
-    return n;
+    Object.assign(g.player, { x: spot[0], y: spot[1], a: Math.atan2(o.y - spot[1], o.x - spot[0]), lock: 0 });
   };
-  const expect = (cond, msg) => (cond ? console.log(`  ok: ${msg}`) : fail(msg));
+  const press = (g, input = { interact: true }) => updateGame(g, input, DT);
+  const run = (g, seconds, input = {}) => { for (let i = 0; i < seconds * 60; i++) updateGame(g, typeof input === 'function' ? input() : input, DT); };
+  const npc = (g, name) => g.npcs.find((n) => n.name === name);
+  const station = (g, type) => g.stations.find((s) => s.type === type);
+
+  // Detector calibration.
   let g = fresh();
+  standAt(g, station(g, 'detector_bench'));
+  press(g);
+  expect(g.mini && g.mini.kind === 'calibrate', 'detector bench opens the calibration gauge');
+  run(g, 15, () => {
+    const m = g.mini;
+    return { interact: !!m && needlePos(m) > m.zone[0] + 0.02 && needlePos(m) < m.zone[1] - 0.02 && (g.t * 60 | 0) % 12 === 0 };
+  });
+  expect(taskReport(g, 'detector').task.done, 'three hits in the green band calibrate the detector');
 
-  g.player.memos = 0;
-  const ryan = visit(g, 'Ryan R');
-  expect(ryan && !ryan.perkUsed && /ticket/i.test(g.dialog?.lines.join(' ')), 'Ryan R asks for a ticket first');
+  // Vehicle dose run: Serkan's model, Jennifer's priority queue, Mark L's remote access.
+  g = fresh();
+  standAt(g, station(g, 'vehicle_sim'));
+  press(g);
+  const vt = taskReport(g, 'vehicle').task;
+  expect(vt.running, 'vehicle dose run starts at the console');
+  run(g, 4);
+  expect(vt.progress > 0.2 && vt.progress < 0.3, `run progresses while you stay nearby (${(vt.progress * 100).toFixed(0)}%)`);
+  g.player.x = 9.5; g.player.y = 16.5;
+  const before = vt.progress;
+  run(g, 3);
+  expect(vt.progress === before, 'run pauses when you walk away');
+  standAt(g, npc(g, 'Serkan G'));
+  press(g);
+  expect(vt.progress >= before + 0.5 - 1e-9, `Serkan G hands over half the run (${(vt.progress * 100).toFixed(0)}%)`);
+  standAt(g, npc(g, 'Mark L'));
+  press(g);
+  standAt(g, npc(g, 'Jennifer M'));
+  press(g);
+  g.player.x = 9.5; g.player.y = 16.5;
+  run(g, 4);
+  expect(vt.done, 'remote access + priority queue finish the run from across the floor');
+
+  // Medical dose calculations need Ramona's dosimetry. (The workstation is
+  // inside Kevin's gravity well, so keep him busy for this one.)
+  g = fresh();
+  npc(g, 'Kevin').chatCd = 999;
+  standAt(g, station(g, 'dose_calc'));
+  press(g);
+  expect(!g.quiz, 'dose workstation refuses without dosimetry readings');
+  standAt(g, npc(g, 'Ramona'));
+  press(g);
+  expect(hasItem(g.player, 'dosimetry'), 'Ramona hands over the crew dosimetry');
+  standAt(g, station(g, 'dose_calc'));
+  press(g);
+  expect(g.quiz && g.quiz.kind === 'dosecalc', 'dose calculator opens');
+  press(g, { answer: ((g.quiz.answer + 1) % 3) + 1 });
+  expect(!g.quiz && !taskReport(g, 'medical').task.done, 'a wrong answer sends you back to recheck');
+  run(g, 5);
+  press(g);
+  for (let i = 0; i < 2 && g.quiz; i++) press(g, { answer: g.quiz.answer + 1 });
+  expect(taskReport(g, 'medical').task.done, 'two right answers finish the medical dose task');
+
+  // The astronaut debrief, while the astronaut walks around.
+  g = fresh();
+  const astro = g.npcs.find((n) => n.debrief);
+  run(g, 3);
+  expect(astro.moving || astro.pause > 0 || near(astro, astro.patrol[0]) > 0.5, 'the astronaut walks the floor');
+  standAt(g, astro);
+  press(g);
+  expect(g.chat && g.chat.kind === 'debrief', 'talking to the astronaut starts the debrief');
+  run(g, 5);
+  expect(taskReport(g, 'astronaut').task.done, 'debrief completes the astronaut task');
+
+  // Kevin's gravity well.
+  g = fresh();
+  const kevin = npc(g, 'Kevin');
+  Object.assign(g.player, { x: kevin.x - 0.2, y: kevin.y + 2.4, a: Math.PI / 2 });
+  run(g, 1.5);
+  expect(near(g.player, kevin) < 2.4 || g.chat, 'Kevin pulls you in when you stand still nearby');
+  run(g, 3);
+  expect(g.chat?.kind === 'blackhole' || g.stats.trapped > 0, 'getting close traps you in a Kevin conversation');
+  let presses = 0;
+  run(g, 4, () => ({ interact: g.chat && (presses++ % 6 === 0) }));
+  expect(!g.chat && kevin.chatCd > 0, 'mashing E gets you out, and his pull switches off for a while');
+
+  // Ryan's physics problem walks you back to his whiteboard.
+  g = fresh();
+  const ryan = npc(g, 'Ryan R');
+  Object.assign(ryan, { x: 10.5, y: 12.5 });
+  Object.assign(g.player, { x: 10.5, y: 15.5, a: -Math.PI / 2 });
+  run(g, 4);
+  expect(g.chat?.kind === 'physics', 'Ryan R spots you, catches up and starts a physics discussion');
+  run(g, 8);
+  expect(near(g.player, ryan.physics.home) < 2.5, `you end up at his whiteboard (${near(g.player, ryan.physics.home).toFixed(1)} tiles away)`);
+
+  // Neil drops in, delivers a pun, and leaves.
+  g = fresh();
+  const neil = npc(g, 'Neil Z');
+  neil.dropIn.timer = 0.01;
+  run(g, 0.1);
+  expect(neil.present && neil.seeking, 'Neil Z steps off the elevator');
+  Object.assign(g.player, { x: neil.x + 1.0, y: neil.y, a: Math.PI });
+  run(g, 0.5);
+  expect(g.chat?.kind === 'dropin', 'Neil Z finds you and starts talking');
+  run(g, 15);
+  expect(!neil.present, 'then he leaves without making a point');
+
+  // Submitting at the SRAG console.
+  g = fresh();
+  standAt(g, station(g, 'srag_console'));
+  press(g);
+  expect(g.status === 'playing', 'the console refuses unfinished reports');
+  for (const r of g.reports) { if (r.task) r.task.done = true; if (r.signoff) r.signoff.signed = true; r.stamps.forEach((id) => r.stamped.add(id)); }
+  press(g);
+  expect(g.status === 'won' && g.result.reason === 'submitted', 'submitting everything wins');
+
+  // Earlier helpers still work.
+  g = fresh();
   g.player.memos = 2;
-  visit(g, 'Ryan R');
-  expect(g.bosses.every((b) => b.stun > 10 && b.stunKind === 'update') && g.player.memos === 1, 'Ryan R: memo as ticket, managers frozen');
-
+  standAt(g, npc(g, 'Ryan R'));
+  Object.assign(npc(g, 'Ryan R'), { chatCd: 99 });
+  press(g);
+  expect(g.bosses.every((b) => b.stun > 10 && b.stunKind === 'update'), 'Ryan R: a memo ticket freezes management');
   g = fresh();
-  visit(g, 'Janet');
-  g.flare.state = 'idle'; g.flare.timer = 0.001;
-  updateGame(g, {}, DT);
-  expect(g.perks.flareWatch && g.flare.state === 'warning' && g.flare.timer > 11, 'Janet: 12 s flare warnings');
-
-  g = fresh();
-  visit(g, 'Steve J');
-  const eddie = g.bosses.find((b) => b.id === 'eddie');
-  Object.assign(g.player, { x: 15.5, y: 6.5, a: -Math.PI / 2, lock: 0 });
-  Object.assign(eddie, { x: 15.5, y: 5.5, satisfied: 0, state: 'patrol' });
-  updateGame(g, { interact: true }, DT);
-  expect(g.perks.fastReviews && eddie.reviewing > 0 && Math.abs(g.player.lockMax - (1.5 + 1) * 0.5) < 1e-6, 'Steve J: reviews take half as long');
-
-  g = fresh();
-  g.player.dose = 30;
-  visit(g, 'Ramona');
-  expect(Math.abs(g.player.dose - 10) < 0.1, `Ramona: dose recalibrated 30 -> ${g.player.dose.toFixed(1)}`);
-
-  g = fresh();
-  g.player.sanity = 50;
-  const amir = visit(g, 'Amir B');
-  expect(!!g.quiz && g.quiz.choices.length === 3, 'Amir B: Jeopardy clue shown');
-  updateGame(g, { answer: g.quiz.answer + 1 }, DT);
-  expect(!g.quiz && g.stats.quizRight === 1 && g.player.sanity > 65 && amir.cooldown > 0, 'Amir B: right answer, +20 sanity, cooldown');
-  visit(g, 'Amir B');
-  expect(!g.quiz, 'Amir B: no new clue during cooldown');
-  amir.cooldown = 0;
-  visit(g, 'Amir B');
-  for (let i = 0; i < 60 * 13 && g.quiz; i++) updateGame(g, {}, DT);
-  expect(!g.quiz && g.stats.quizWrong === 1, "Amir B: time's up counts as wrong");
-
-  g = fresh();
-  visit(g, 'Mark S');
-  const before = g.player.sanity;
-  Object.assign(eddie && g.bosses.find((b) => b.id === 'eddie'), { x: g.player.x + 0.3, y: g.player.y, state: 'chase', satisfied: 0, stun: 0 });
-  updateGame(g, {}, DT);
-  expect(!g.perks.shield && g.stats.catches === 0 && g.player.sanity >= before - 0.01, 'Mark S: next catch is talked down');
+  standAt(g, npc(g, 'Mark S'));
+  press(g);
+  Object.assign(g.bosses[0], { x: g.player.x + 0.3, y: g.player.y, state: 'chase', satisfied: 0, stun: 0 });
+  run(g, 0.1);
+  expect(g.stats.catches === 0 && !g.perks.shield, 'Mark S talks a manager down');
 }
 
 // ---------------------------------------------------------- 5. render --
@@ -263,8 +371,10 @@ function loadSprite(file) {
 let haveFfmpeg = true;
 try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch { haveFfmpeg = false; }
 {
-  const view = process.argv.includes('--houston') ? 'houston' : office.window_view;
-  const textures = buildTextures(encounters.npc_encounters.map((n) => n.look || {}), view);
+  const g = createGame({ office, encounters, seed: 3 });
+  const view = process.argv.includes('--orbit') ? 'orbit' : office.window_view;
+  const poster = haveFfmpeg ? loadSprite(join(ROOT, 'static/sprites/posters/for-the-children.png')) : null;
+  const textures = buildTextures(g.npcs.map((n) => n.look), view, { poster });
   const bossSprites = {};
   if (haveFfmpeg) {
     for (const [id, cfg] of Object.entries(BOSS_SPRITES)) {
@@ -274,27 +384,23 @@ try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch { haveF
   const W = 480, H = 270;
   const rc = new Raycaster(textures, bossSprites);
   rc.resize(W, H);
-  const g = createGame({ office, encounters, seed: 3 });
   const views = [
     { name: 'start', x: 19.5, y: 10.5, a: 0 },
-    { name: 'corridor', x: 10.5, y: 19.5, a: Math.PI },
-    { name: 'john-fm-office', x: 26.5, y: 13.5, a: 0 },
-    { name: 'shelter', x: 15.5, y: 5.5, a: Math.PI / 2 },
-    { name: 'eddie-office', x: 21.5, y: 4.5, a: -Math.PI / 2 },
-    { name: 'elevators', x: 9.5, y: 9.5, a: 0 },
-    { name: 'cabinets', x: 21.3, y: 1.9, a: 0 },
-    { name: 'janet', x: 27.5, y: 9.5, a: 0.15 },
-    { name: 'break-room', x: 15.5, y: 15.6, a: -Math.PI / 2 - 0.3 },
-    { name: 'amir-steve', x: 23.5, y: 8.6, a: -0.6 },
+    { name: 'console-room', x: 18.5, y: 21.5, a: Math.PI / 2 - 0.2 },
+    { name: 'detector-lab', x: 9.5, y: 3.6, a: -Math.PI / 2 },
+    { name: 'kevin', x: 22.5, y: 16.6, a: -Math.PI / 2 },
+    { name: 'office-row', x: 13.5, y: 4.5, a: -Math.PI / 2 },
+    { name: 'clifton', x: 9.5, y: 9.5, a: 0 },
+    { name: 'corridor-doors', x: 5.5, y: 19.5, a: 0 },
+    { name: 'serkan', x: 13.5, y: 2.5, a: -Math.PI / 2 },
   ];
   const outDir = process.argv.includes('--frames') ? process.argv[process.argv.indexOf('--frames') + 1] : null;
   if (outDir) mkdirSync(outDir, { recursive: true });
   let ms = 0, n = 0;
   for (const v of views) {
     Object.assign(g.player, { x: v.x, y: v.y, a: v.a });
-    if (v.name === 'corridor') Object.assign(g.bosses[1], { x: 6.5, y: 19.5, a: 0.3, state: 'search' });
-    if (v.name === 'shelter') { Object.assign(g.bosses[0], { x: 17.5, y: 7.2, a: Math.PI, state: 'chase' }); }
-    if (v.name === 'elevators') Object.assign(g.bosses[1], { x: 11.3, y: 10.5, a: Math.PI * 0.75, state: 'patrol' });
+    if (v.name === 'clifton') Object.assign(g.bosses[1], { x: 11.3, y: 10.5, a: Math.PI * 0.75, state: 'patrol' });
+    if (v.name === 'start') { const a = g.npcs.find((x) => x.debrief); Object.assign(a, { x: 22.5, y: 9.5 }); }
     const t0 = performance.now();
     for (let i = 0; i < 20; i++) rc.render(g, i / 60);
     ms += performance.now() - t0; n += 20;

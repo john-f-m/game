@@ -6,33 +6,38 @@ import { World, T } from './world.js';
 
 export const DIFFICULTY = {
   intern: {
-    label: 'Intern', blurb: 'More time, slower bosses, less radiation.',
-    time: 360, patrolSpeed: 1.1, chaseSpeed: 2.4, viewRange: 6, fov: 1.5, detect: 1.0, doseMult: 0.7, catchMult: 0.6,
+    label: 'Intern', blurb: 'Generous deadline, slower bosses.',
+    time: 540, patrolSpeed: 1.1, chaseSpeed: 2.4, viewRange: 6, fov: 1.5, detect: 1.0, doseMult: 0.8, catchMult: 0.6,
     reviews: 1, multiStamp: 0.3,
   },
   analyst: {
     label: 'Analyst', blurb: 'The intended experience.',
-    time: 280, patrolSpeed: 1.35, chaseSpeed: 3.0, viewRange: 7.5, fov: 1.8, detect: 0.5, doseMult: 1, catchMult: 0.9,
+    time: 450, patrolSpeed: 1.35, chaseSpeed: 3.0, viewRange: 7.5, fov: 1.8, detect: 0.5, doseMult: 1, catchMult: 0.9,
     reviews: 2, multiStamp: 0.5,
   },
   director: {
-    label: 'Director', blurb: 'Less time. Sharper eyes. Faster bosses.',
-    time: 210, patrolSpeed: 1.6, chaseSpeed: 3.4, viewRange: 9, fov: 2.0, detect: 0.35, doseMult: 1.3, catchMult: 1.25,
+    label: 'Director', blurb: 'Tight deadline. Sharper eyes. Faster bosses.',
+    time: 330, patrolSpeed: 1.6, chaseSpeed: 3.4, viewRange: 9, fov: 2.0, detect: 0.35, doseMult: 1.25, catchMult: 1.25,
     reviews: 3, multiStamp: 0.7,
   },
 };
 
 export const PLAYER = {
   radius: 0.22, walk: 2.6, run: 4.2, turnRate: 2.6,
-  sanity: 100, doseLimit: 100, stamina: 100, staminaDrain: 30, staminaRegen: 22, startMemos: 2, maxMemos: 10, maxCoffee: 3, memoPack: 3, stun: 3.5,
+  sanity: 100, stamina: 100, staminaDrain: 30, staminaRegen: 22, startMemos: 2, maxMemos: 10, maxCoffee: 3, memoPack: 3, stun: 3.5,
 };
+
+// The astronauts' dose climbs until you deliver the assessment (faster as the
+// solar particle event builds, and during flares). It is your score, not a
+// fail state: the deadline is.
+export const CREW = { start: 1.5, base: 0.02, ramp: 0.08, flare: 4, limit: 50 };
 
 export const ITEMS = {
   coffee: { name: 'coffee', pickup: 'Picked up a coffee. Press C to drink it (+35 sanity).' },
   memos: { name: 'memos', pickup: '+3 memos. Throw them with Space or a click.' },
   timesheet: { name: "Katie's timesheet", pickup: "Found Katie's timesheet, jammed in the printer. PC LOAD LETTER indeed." },
   r13: { name: 'a blank Form R-13', pickup: "Swiped a blank Form R-13 from Eddie's cabinet." },
-  vest: { name: 'the lead apron', pickup: 'Put on a lead apron. Radiation dose cut by 60%.' },
+  dosimetry: { name: "the crew's dosimetry readings", pickup: "Got the crew's dosimetry readings." },
 };
 
 // What helpful coworkers (encounters.json "perk") do for you.
@@ -40,13 +45,34 @@ export const PERKS = {
   freeze_managers: { label: 'Management laptops rebooting' },
   flare_watch: { label: 'Flare watch' },
   fast_reviews: { label: 'Pivot-tabled reports: fast reviews' },
-  recalibrate: { label: 'Recalibrated badge' },
   jeopardy: { label: 'Jeopardy' },
   people_person: { label: 'People person on call' },
+  remote_access: { label: 'Remote access to the vehicle run' },
+  sim_priority: { label: 'Priority queue: vehicle run 2x faster' },
+  gcr_model: { label: 'GCR model results' },
 };
+
+// Work that reports need besides sign-offs and stamps (encounters.json
+// report "task"), and the stations in office.json where it happens.
+export const TASKS = {
+  detector: { label: 'Calibrate the prototype radiation detector', short: 'calibrate the detector (Detector Lab)', station: 'detector_bench' },
+  vehicle: { label: 'Assess radiation dose inside the vehicle', short: 'run the vehicle dose model (console room)', station: 'vehicle_sim' },
+  medical: { label: "Calculate the astronauts' medical doses", short: 'medical dose calculations', station: 'dose_calc', needs: 'dosimetry' },
+  astronaut: { label: 'Debrief the visiting astronaut', short: 'debrief the astronaut' },
+};
+
+export const STATIONS = {
+  detector_bench: { label: 'detector test bench', radius: 0.36 },
+  vehicle_sim: { label: 'vehicle dose console', radius: 0.36 },
+  dose_calc: { label: 'medical dose workstation', radius: 0.32 },
+  srag_console: { label: 'SRAG console', radius: 0.36 },
+};
+
 const QUIZ_TIME = 12;
 const QUIZ_COOLDOWN = 35;
 const FREEZE_TIME = 15;
+const CAL_TIME = 20;
+const SIM_TIME = 16;
 
 // What getting caught costs, per boss.
 const CATCH_RULES = {
@@ -61,7 +87,13 @@ const DEFAULT_BOSS_LINES = {
   review: ['Let me take a look...'], approve: ['Fine. Approved.'],
 };
 
+const DEFAULT_AMBIENT = {
+  titles: ['Dose analyst', 'Health physicist', 'Space weather forecaster', 'Software engineer', 'Data analyst'],
+  lines: ['Busy. Dose numbers are due today.', 'Have you seen the stapler?', 'Is it Friday yet?'],
+};
+
 const DECOR_RADIUS = { plant: 0.28, cooler: 0.25, printer: 0.34, trash: 0.2, console: 0.36 };
+const FACING = { east: 0, south: Math.PI / 2, west: Math.PI, north: -Math.PI / 2 };
 
 // Quiz entries from encounters.json; "answer" there is 1-based.
 function readQuiz(list, who, warn) {
@@ -73,7 +105,6 @@ function readQuiz(list, who, warn) {
     return ok;
   }).map((q) => ({ clue: q.clue, choices: q.choices.map(String), answer: q.answer - 1 }));
 }
-const FACING = { east: 0, south: Math.PI / 2, west: Math.PI, north: -Math.PI / 2 };
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -99,10 +130,25 @@ export function stripSpeaker(line) {
   return String(line).replace(/^\s*🗣️?\s*[^:]{1,24}:\s*/u, '');
 }
 
+// Sprite colours for the unnamed coworkers. Depends only on the index, so
+// every round (and the texture builder) agrees on how each one looks.
+export function ambientLook(i) {
+  const r = mulberry32(9000 + i * 7);
+  const pick = (a) => a[Math.floor(r() * a.length)];
+  return {
+    hair: pick(['#1f1a17', '#3b2a1e', '#5a3a22', '#7a5230', '#a0522d', '#c9a36b', '#8a8a8a', '#d8d8d8']),
+    skin: pick(['#f0c8a0', '#e8b48c', '#d9a37c', '#c98e62', '#b98560', '#8d5a3b']),
+    shirt: pick(['#4f7fb5', '#6d8f4e', '#c0504d', '#8e5aa8', '#d9a441', '#3d5a80', '#eef0f2', '#7a8a99', '#2e8b8b']),
+    pants: pick(['#2d2f3a', '#353b48', '#3b3b3b', '#4a3f35']),
+    long_hair: r() < 0.4, glasses: r() < 0.35, beard: r() < 0.15,
+  };
+}
+
 export function createGame({ office, encounters, difficulty = 'analyst', seed = Date.now(), warn = () => {} }) {
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.analyst;
   const rng = mulberry32(seed);
   const world = new World(office.map, warn);
+  world.setZones(office.zones, warn);
 
   const place = (at, label) => {
     let x = Array.isArray(at) ? Math.floor(Number(at[0])) : NaN;
@@ -114,6 +160,7 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
     }
     return [x, y];
   };
+  const center = ([x, y]) => ({ x: x + 0.5, y: y + 0.5 });
 
   const decor = (office.decor || []).map((d, i) => {
     const [x, y] = place(d.at, `office.json decor #${i} (${d.type})`);
@@ -121,23 +168,61 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
     return { type: d.type, x: x + 0.5, y: y + 0.5, radius: DECOR_RADIUS[d.type] ?? 0.25 };
   });
 
-  const npcs = (encounters.npc_encounters || []).map((n, i) => {
-    const name = n.npc || `Coworker ${i + 1}`;
-    const [x, y] = place(n.location, `encounters.json ${name}`);
+  const stations = (office.stations || []).filter((s, i) => {
+    if (!STATIONS[s.type]) warn(`office.json station #${i}: unknown type "${s.type}"`);
+    return STATIONS[s.type];
+  }).map((s, i) => {
+    const [x, y] = place(s.at, `office.json station #${i} (${s.type})`);
     world.occupied[y * world.w + x] = 1;
+    return { type: s.type, x: x + 0.5, y: y + 0.5, radius: STATIONS[s.type].radius, cooldown: 0 };
+  });
+
+  const named = (encounters.npc_encounters || []).map((n, i) => {
+    const name = n.npc || `Coworker ${i + 1}`;
+    const roams = Array.isArray(n.patrol) && n.patrol.length > 0;
+    const drops = !!n.drop_in;
+    const [x, y] = place(roams ? n.patrol[0] : drops ? n.drop_in.from : n.location, `encounters.json ${name}`);
+    if (!roams && !drops) world.occupied[y * world.w + x] = 1;
     if (n.perk && !PERKS[n.perk]) warn(`encounters.json ${name}: unknown perk "${n.perk}"`);
+    if (n.gives && !ITEMS[n.gives]) warn(`encounters.json ${name}: unknown item "${n.gives}" to give`);
     const quiz = readQuiz(n.quiz, name, warn);
     const perk = PERKS[n.perk] && (n.perk !== 'jeopardy' || quiz.length) ? n.perk : null;
-    return {
-      index: i, name, title: n.title || '', x: x + 0.5, y: y + 0.5, radius: 0.3,
+    const npc = baseNpc(i, name, x, y, n.look);
+    Object.assign(npc, {
+      title: n.title || '',
       lines: Array.isArray(n.lines) && n.lines.length ? n.lines : ['...'],
       wants: n.wants && ITEMS[n.wants.item] ? n.wants : null,
-      signLine: n.sign || "Sure, I'll sign.",
-      look: n.look || {}, signed: false, met: false, talkCount: 0, report: null,
-      perk, perkLine: n.perk_line || '', perkUsed: false, cooldown: 0,
-      quiz, quizIdx: quiz.length ? Math.floor(rng() * quiz.length) : 0,
-    };
+      signLine: n.sign || "Sure, I'll sign off.",
+      perk, perkLine: n.perk_line || '', quiz, quizIdx: quiz.length ? Math.floor(rng() * quiz.length) : 0,
+      gives: ITEMS[n.gives] ? n.gives : null, giveLine: n.give_line || '', gave: false,
+      blackHole: n.black_hole ? { radius: Number(n.black_hole.radius) || 3.2, lines: n.black_hole.lines || n.lines } : null,
+      physics: n.physics ? { home: center(place(n.physics.home || n.patrol?.[0] || [x, y], `encounters.json ${name} home`)), lines: n.physics.lines || n.lines } : null,
+      debrief: Array.isArray(n.debrief) && n.debrief.length ? n.debrief : null,
+      dropIn: drops ? {
+        from: { x: x + 0.5, y: y + 0.5 }, lines: n.drop_in.lines || n.lines, exit: n.drop_in.exit || 'Anyway, I won\'t keep you.',
+        every: Array.isArray(n.drop_in.every) ? n.drop_in.every : [70, 110], timer: Number(n.drop_in.first) || 45,
+      } : null,
+      present: !drops,
+      patrol: roams ? n.patrol.map((wp, j) => center(place(wp, `encounters.json ${name} patrol ${j}`))) : null,
+      speed: Number(n.speed) || 1.4,
+    });
+    return npc;
   });
+
+  const amb = { ...DEFAULT_AMBIENT, ...(encounters.ambient || {}) };
+  const ambient = (office.coworkers || []).map((c, j) => {
+    const at = Array.isArray(c) ? c : c.at;
+    const [x, y] = place(at, `office.json coworker #${j}`);
+    world.occupied[y * world.w + x] = 1;
+    const idx = named.length + j;
+    const npc = baseNpc(idx, 'Coworker', x, y, ambientLook(j));
+    const lr = mulberry32(500 + j * 13);
+    npc.ambient = true;
+    npc.title = (!Array.isArray(c) && c.title) || amb.titles[Math.floor(lr() * amb.titles.length)];
+    npc.lines = [0, 1].map(() => amb.lines[Math.floor(lr() * amb.lines.length)]);
+    return npc;
+  });
+  const npcs = [...named, ...ambient];
 
   const items = (office.items || []).filter((it) => ITEMS[it.type]).map((it, i) => {
     const [x, y] = place(it.at, `office.json item #${i} (${it.type})`);
@@ -149,9 +234,9 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
   const player = {
     x: start[0] + 0.5, y: start[1] + 0.5,
     a: typeof facing === 'number' ? (facing * Math.PI) / 180 : FACING[facing] ?? 0,
-    sanity: PLAYER.sanity, dose: 0, doseRate: 0, memos: PLAYER.startMemos, coffee: 0,
+    sanity: PLAYER.sanity, memos: PLAYER.startMemos, coffee: 0,
     stamina: PLAYER.stamina, winded: false, restTimer: 0,
-    items: new Set(), vest: false,
+    items: new Set(),
     lock: 0, lockMax: 0, lockText: '', lockKind: '', hurt: 0, throwAnim: 0, drinkAnim: 0,
     moving: false, running: false, bob: 0, stepAcc: 0,
   };
@@ -164,46 +249,65 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
     if (!patrol.length) patrol = [[x, y]];
     return {
       id, name: b.name || id, x: x + 0.5, y: y + 0.5, a: 0, turnTo: 0,
-      patrol: patrol.map(([px, py]) => ({ x: px + 0.5, y: py + 0.5 })), patrolIdx: 0,
+      patrol: patrol.map(center), patrolIdx: 0,
       state: 'patrol', path: null, pathKey: '', repath: 0, pathFailed: false,
       alert: 0, sees: false, lost: 0, lastSeen: null, target: null, searchTime: 0,
-      stun: 0, satisfied: 0, pause: 0, barkCd: 0, flash: 0, moving: false, walkPhase: 0,
+      stun: 0, stunKind: '', satisfied: 0, pause: 0, barkCd: 0, flash: 0, moving: false, walkPhase: 0,
       reviewing: 0, reviewList: [],
       lines: { ...DEFAULT_BOSS_LINES, ...(bossLines[id] || {}) },
     };
   });
 
   const reports = buildReports(encounters.reports, npcs, bosses, warn);
+  for (const r of reports) {
+    if (r.task && TASKS[r.task.type].station && !stations.some((s) => s.type === TASKS[r.task.type].station)) {
+      warn(`office.json: the ${r.name} needs a "${TASKS[r.task.type].station}" station, and there isn't one`);
+    }
+  }
 
   const g = {
     world, diff, difficulty: DIFFICULTY[difficulty] ? difficulty : 'analyst', rng,
     t: 0, timeLeft: diff.time, status: 'playing', result: null,
-    player, npcs, bosses, items, decor, projectiles: [],
+    player, npcs, bosses, items, decor, stations, projectiles: [],
     toasts: [], dialog: null, prompt: null, target: null, events: [],
     flare: { state: 'idle', timer: 40 + rng() * 15 },
-    intensity: 0.3, chase: 0,
+    intensity: 0.3, chase: 0, gravity: 0, crewDose: CREW.start, crewRate: 0,
     puns: Array.isArray(encounters.puns) ? encounters.puns : [], punTimer: 15,
     explored: new Uint8Array(world.w * world.h),
     reports, allReady: false, stampFlash: null,
     review: { timer: 45 + rng() * 15, left: diff.reviews },
-    perks: { flareWatch: false, fastReviews: false, shield: false }, quiz: null,
+    perks: { flareWatch: false, fastReviews: false, shield: false, remote: false, priority: false },
+    quiz: null, mini: null, chat: null,
     stats: {
-      catches: 0, memosThrown: 0, memosHit: 0, coffees: 0, distance: 0, peakDoseRate: 0,
-      stamps: 0, reviews: 0, perks: 0, quizRight: 0, quizWrong: 0,
+      catches: 0, memosThrown: 0, memosHit: 0, coffees: 0, distance: 0,
+      stamps: 0, reviews: 0, perks: 0, quizRight: 0, quizWrong: 0, tasks: 0, trapped: 0,
     },
-    noMemoNagged: 0,
+    noMemoNagged: 0, mapName: office.name || '',
   };
   markExplored(g, 2.5);
-  toast(g, `SOLAR STORM WARNING: CME arrives in ${formatClock(g.timeLeft)}.`, 'warn', 7);
-  toast(g, `Get your ${reports.length} reports signed off and approved, then reach the Storm Shelter (the stairwell in the central core).`, 'info', 9);
+  toast(g, `DEADLINE: the Flight Director needs your dose assessment in ${formatClock(g.timeLeft)}.`, 'warn', 7);
+  toast(g, `Finish your ${reports.length} reports and submit them at the SRAG console (south side, console room) to protect the crew.`, 'info', 9);
   return g;
 }
 
-// Reports come from encounters.json: each needs a coworker's sign-off
-// and/or approval stamps from management (boss ids).
+function baseNpc(index, name, x, y, look) {
+  return {
+    index, name, title: '', x: x + 0.5, y: y + 0.5, radius: 0.3, look: look || {},
+    lines: ['...'], wants: null, signLine: '', signed: false, met: false, talkCount: 0, report: null,
+    perk: null, perkLine: '', perkUsed: false, cooldown: 0, quiz: [], quizIdx: 0,
+    gives: null, giveLine: '', gave: false, ambient: false,
+    blackHole: null, physics: null, debrief: null, dropIn: null, present: true,
+    patrol: null, patrolIdx: 0, speed: 1.4, path: null, pathKey: '', repath: 0, pathFailed: false,
+    a: Math.PI / 2, turnTo: Math.PI / 2, moving: false, walkPhase: 0, pause: 0,
+    chatCd: 0, hunting: false, huntTime: 0, seeking: false, seekTime: 0, leaving: false,
+  };
+}
+
+// Reports come from encounters.json: each can need a task, a coworker's
+// sign-off and approval stamps from management (boss ids).
 function buildReports(list, npcs, bosses, warn) {
   const bossIds = new Set(bosses.map((b) => b.id));
-  const src = Array.isArray(list) && list.length ? list : npcs.map((n) => ({ name: `${n.name}'s report`, signoff: n.name }));
+  const src = Array.isArray(list) && list.length ? list : npcs.filter((n) => !n.ambient).map((n) => ({ name: `${n.name}'s report`, signoff: n.name }));
   return src.map((r, i) => {
     const name = r.name || `Report ${i + 1}`;
     let signoff = null;
@@ -218,15 +322,18 @@ function buildReports(list, npcs, bosses, warn) {
       if (bossIds.has(key)) stamps.add(key);
       else warn(`encounters.json report "${name}": no manager with id "${id}"`);
     }
-    const report = { id: r.id || `report${i}`, name, signoff, stamps, stamped: new Set(), done: false };
+    if (r.task && !TASKS[r.task]) warn(`encounters.json report "${name}": unknown task "${r.task}"`);
+    const task = TASKS[r.task] ? { type: r.task, done: false, progress: 0, running: false } : null;
+    const report = { id: r.id || `report${i}`, name, signoff, stamps, stamped: new Set(), task, done: false };
     if (signoff) signoff.report = report;
     return report;
   });
 }
 
-export const reportReady = (r) => (!r.signoff || r.signoff.signed) && [...r.stamps].every((id) => r.stamped.has(id));
+export const reportReady = (r) => (!r.task || r.task.done) && (!r.signoff || r.signoff.signed) && [...r.stamps].every((id) => r.stamped.has(id));
 export const readyCount = (g) => g.reports.filter(reportReady).length;
 export const pendingStamps = (g, bossId) => g.reports.filter((r) => r.stamps.has(bossId) && !r.stamped.has(bossId));
+export const taskReport = (g, type) => g.reports.find((r) => r.task && r.task.type === type);
 
 export function joinNames(names) {
   return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
@@ -237,10 +344,10 @@ function checkReports(g) {
   for (const r of g.reports) {
     if (r.done || !reportReady(r)) continue;
     r.done = true;
-    toast(g, `${r.name} is ready to file (${readyCount(g)}/${g.reports.length})`, 'good', 5);
+    toast(g, `${r.name} is ready (${readyCount(g)}/${g.reports.length})`, 'good', 5);
   }
   const all = readyCount(g) === g.reports.length;
-  if (all && !g.allReady) toast(g, 'Every report is ready! Get to the Storm Shelter: the stairwell door on the north side of the core.', 'good', 8);
+  if (all && !g.allReady) toast(g, 'Every report is ready! Submit them at the SRAG console in the console room (south side).', 'good', 8);
   g.allReady = all;
 }
 
@@ -263,15 +370,16 @@ function sfx(g, name, extra) {
 export function hasItem(p, item) {
   if (item === 'coffee') return p.coffee > 0;
   if (item === 'memos') return p.memos > 0;
-  if (item === 'vest') return p.vest;
   return p.items.has(item);
 }
 
 function takeItem(p, item) {
   if (item === 'coffee') p.coffee--;
   else if (item === 'memos') p.memos--;
-  else if (item !== 'vest') p.items.delete(item);
+  else p.items.delete(item);
 }
+
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // ---------------------------------------------------------------- update --
 
@@ -287,7 +395,7 @@ export function updateGame(g, input, dt) {
   if (g.dialog) {
     g.dialog.ttl -= dt;
     const n = g.dialog.npc;
-    if (g.dialog.ttl <= 0 || (n && Math.hypot(n.x - p.x, n.y - p.y) > 2.6)) g.dialog = null;
+    if (g.dialog.ttl <= 0 || (n && (!n.present || dist(n, p) > 2.6))) g.dialog = null;
   }
 
   p.a += (input.turn || 0) * PLAYER.turnRate * dt + (input.look || 0);
@@ -295,8 +403,11 @@ export function updateGame(g, input, dt) {
   p.hurt = Math.max(0, p.hurt - dt);
   p.throwAnim = Math.max(0, p.throwAnim - dt);
   p.drinkAnim = Math.max(0, p.drinkAnim - dt);
-
-  for (const n of g.npcs) if (n.cooldown > 0) n.cooldown -= dt;
+  for (const n of g.npcs) {
+    if (n.cooldown > 0) n.cooldown -= dt;
+    if (n.chatCd > 0) n.chatCd -= dt;
+  }
+  for (const s of g.stations) if (s.cooldown > 0) s.cooldown -= dt;
 
   if (p.lock > 0) {
     p.lock -= dt;
@@ -305,6 +416,10 @@ export function updateGame(g, input, dt) {
     if (g.quiz) {
       if (input.answer) answerQuiz(g, input.answer - 1);
       else if (p.lock <= 0) answerQuiz(g, -1); // time's up
+    } else if (g.mini) {
+      updateMini(g, input, dt);
+    } else if (g.chat) {
+      updateChat(g, input, dt);
     }
   } else {
     movePlayer(g, input, dt);
@@ -312,11 +427,14 @@ export function updateGame(g, input, dt) {
     if (input.interact) interact(g);
     if (input.throw) throwMemo(g);
     if (input.drink) drink(g);
+    if (p.lock <= 0) checkTraps(g);
   }
   g.prompt = p.lock > 0 ? null : promptFor(g, g.target);
 
   updateItems(g, dt);
   updateProjectiles(g, dt);
+  updateCoworkers(g, dt);
+  updateStations(g, dt);
   g.chase = 0;
   for (const b of g.bosses) {
     updateBoss(g, b, dt);
@@ -324,20 +442,21 @@ export function updateGame(g, input, dt) {
   }
   // Sanity slowly recovers while nobody is after you.
   if (g.chase < 0.5 && p.lock <= 0) p.sanity = Math.min(PLAYER.sanity, p.sanity + 0.4 * dt);
-  updateStorm(g, dt);
+  updateCrew(g, dt);
   updateReviews(g, dt);
   updateAmbient(g, dt);
   markExplored(g, 1.6);
 
   if (g.status === 'playing') {
     if (p.sanity <= 0) endGame(g, false, 'sanity');
-    else if (p.dose >= PLAYER.doseLimit) endGame(g, false, 'dose');
     else if (g.timeLeft <= 0) endGame(g, false, 'time');
   }
 }
 
+// People who walk around (the astronaut, Ryan, Neil) don't block you:
+// otherwise you and they can deadlock in a doorway, each waiting politely.
 function solids(g) {
-  return [...g.npcs, ...g.decor];
+  return [...g.npcs.filter((n) => n.present && !n.patrol && !n.dropIn), ...g.decor, ...g.stations];
 }
 
 function movePlayer(g, input, dt) {
@@ -360,8 +479,20 @@ function movePlayer(g, input, dt) {
     if (p.restTimer <= 0) p.stamina = Math.min(PLAYER.stamina, p.stamina + PLAYER.staminaRegen * dt);
     if (p.winded && p.stamina >= PLAYER.stamina * 0.35) p.winded = false;
   }
+  // Kevin's gravity well drags you toward him.
+  let px = 0, py = 0;
+  g.gravity = 0;
+  for (const n of g.npcs) {
+    if (!n.blackHole || !n.present || n.chatCd > 0) continue;
+    const dx = n.x - p.x, dy = n.y - p.y, d = Math.hypot(dx, dy);
+    if (d >= n.blackHole.radius || d < 0.3) continue;
+    const pull = 1.4 * (1 - d / n.blackHole.radius);
+    g.gravity = Math.max(g.gravity, pull / 1.4);
+    px += (dx / d) * pull * dt;
+    py += (dy / d) * pull * dt;
+  }
   const ox = p.x, oy = p.y;
-  let pos = w.moveCircle(p.x, p.y, mx * speed * dt, my * speed * dt, PLAYER.radius);
+  let pos = w.moveCircle(p.x, p.y, mx * speed * dt + px, my * speed * dt + py, PLAYER.radius);
   for (const s of solids(g)) {
     const dx = pos.x - s.x, dy = pos.y - s.y, d = Math.hypot(dx, dy), min = s.radius + PLAYER.radius;
     if (d < min && d > 1e-6) pos = w.moveCircle(pos.x, pos.y, (dx / d) * (min - d), (dy / d) * (min - d), PLAYER.radius);
@@ -381,27 +512,27 @@ function movePlayer(g, input, dt) {
   }
 }
 
+function facing(p, o, maxD) {
+  const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy);
+  return d < maxD && Math.abs(angleDiff(Math.atan2(dy, dx), p.a)) < 0.8 ? d : Infinity;
+}
+
 function findTarget(g) {
-  const p = g.player;
+  const p = g.player, w = g.world;
   let best = null, bestD = 1.7;
   for (const n of g.npcs) {
-    const dx = n.x - p.x, dy = n.y - p.y, d = Math.hypot(dx, dy);
-    if (d < bestD && Math.abs(angleDiff(Math.atan2(dy, dx), p.a)) < 0.8 && canReach(g.world, p, n)) {
-      best = { kind: 'npc', npc: n };
-      bestD = d;
-    }
+    if (!n.present) continue;
+    const d = facing(p, n, bestD);
+    if (d < bestD && canReach(w, p, n)) { best = { kind: 'npc', npc: n }; bestD = d; }
+  }
+  for (const s of g.stations) {
+    const d = facing(p, s, Math.min(bestD, 1.6));
+    if (d < bestD && canReach(w, p, s)) { best = { kind: 'station', station: s }; bestD = d; }
   }
   for (const b of g.bosses) {
     if (b.stun > 0 || b.reviewing > 0 || !pendingStamps(g, b.id).length) continue;
-    const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy);
-    if (d < bestD && Math.abs(angleDiff(Math.atan2(dy, dx), p.a)) < 0.8 && canReach(g.world, p, b)) {
-      best = { kind: 'boss', boss: b };
-      bestD = d;
-    }
-  }
-  if (!best) {
-    const hit = g.world.wallAhead(p.x, p.y, p.a, 1.4);
-    if (hit && hit.tile === T.SHELTER) best = { kind: 'shelter' };
+    const d = facing(p, b, bestD);
+    if (d < bestD && canReach(w, p, b)) { best = { kind: 'boss', boss: b }; bestD = d; }
   }
   return best;
 }
@@ -414,12 +545,27 @@ function canReach(w, p, n) {
     || (w.clearLine(p.x, p.y, p.x, n.y) && w.clearLine(p.x, n.y, n.x, n.y));
 }
 
+function stationPrompt(g, s) {
+  const p = g.player;
+  if (s.type === 'srag_console') {
+    const n = readyCount(g);
+    return n >= g.reports.length ? 'E: Submit the reports to the Flight Director' : `E: SRAG console (${n}/${g.reports.length} reports ready)`;
+  }
+  const r = g.reports.find((rep) => rep.task && TASKS[rep.task.type].station === s.type);
+  if (!r) return `E: Use the ${STATIONS[s.type].label}`;
+  const t = r.task;
+  if (t.done) return `${STATIONS[s.type].label}: done for the ${r.name}`;
+  if (s.type === 'detector_bench') return `E: Calibrate the detector (${r.name})`;
+  if (s.type === 'vehicle_sim') return t.running ? `Vehicle dose run: ${Math.floor(t.progress * 100)}%` : `E: Start the vehicle dose run (${r.name})`;
+  if (s.type === 'dose_calc') {
+    return hasItem(p, 'dosimetry') ? `E: Calculate medical doses (${r.name})` : "Medical dose workstation: needs the crew's dosimetry readings";
+  }
+  return `E: Use the ${STATIONS[s.type].label}`;
+}
+
 function promptFor(g, target) {
   if (!target) return null;
-  if (target.kind === 'shelter') {
-    const n = readyCount(g);
-    return n >= g.reports.length ? 'E: Enter the Storm Shelter' : `E: Storm Shelter (${n}/${g.reports.length} reports ready)`;
-  }
+  if (target.kind === 'station') return stationPrompt(g, target.station);
   if (target.kind === 'boss') {
     const list = pendingStamps(g, target.boss.id);
     if (!list.length) return null;
@@ -429,32 +575,49 @@ function promptFor(g, target) {
   const label = n.title ? `${n.name} (${n.title})` : n.name;
   const signing = n.report && !n.signed;
   if (!signing && n.perk === 'jeopardy' && n.cooldown <= 0) return `E: Play Jeopardy with ${n.name}`;
-  const wantsSomething = signing || (n.perk && !n.perkUsed && n.perk !== 'jeopardy');
+  if (n.debrief && taskPending(g, 'astronaut')) return `E: Debrief the ${n.name.toLowerCase()}`;
+  const wantsSomething = signing || (n.perk && !n.perkUsed && n.perk !== 'jeopardy') || (n.gives && !n.gave);
   if (wantsSomething && n.wants && hasItem(g.player, n.wants.item)) return `E: Give ${ITEMS[n.wants.item].name} to ${n.name}`;
   return `E: Talk to ${label}`;
 }
 
+const taskPending = (g, type) => { const r = taskReport(g, type); return !!(r && !r.task.done); };
+
 function interact(g) {
   const target = g.target;
   if (!target) return;
-  if (target.kind === 'shelter') {
-    const missing = g.reports.length - readyCount(g);
-    if (missing <= 0) endGame(g, true, 'shelter');
-    else {
-      toast(g, `Shelter Warden: "Not without your reports. ${missing} still need${missing === 1 ? 's' : ''} sign-offs or stamps."`, 'warn', 5);
-      sfx(g, 'deny');
-    }
-    return;
-  }
-  if (target.kind === 'boss') { requestApproval(g, target.boss); return; }
-  talk(g, target.npc);
+  if (target.kind === 'station') useStation(g, target.station);
+  else if (target.kind === 'boss') requestApproval(g, target.boss);
+  else talk(g, target.npc);
 }
 
 function talk(g, n) {
   const p = g.player;
+  // Kevin always has a story first.
+  if (n.blackHole && n.chatCd <= 0) {
+    trapInChat(g, n, 'blackhole', () => talk(g, n));
+    return;
+  }
   const out = [stripSpeaker(n.lines[n.talkCount % n.lines.length])];
   n.talkCount++;
   n.met = true;
+  if (n.dropIn) {
+    trapInChat(g, n, 'dropin');
+    return;
+  }
+  if (n.debrief) {
+    const r = taskReport(g, 'astronaut');
+    if (r && !r.task.done) {
+      startChat(g, n, {
+        kind: 'debrief', lines: n.debrief, duration: 4.5, escape: false,
+        onDone: () => {
+          completeTask(g, r, 'Astronaut debriefed. You have everything you need for the risk assessment.');
+          g.dialog = { name: n.name, title: n.title, lines: ['Great talk. I mean, I did most of the talking. As usual.'], ttl: 6, npc: n };
+        },
+      });
+      return;
+    }
+  }
   if (!n.signed && n.report) {
     const want = n.wants;
     if (want && !hasItem(p, want.item)) {
@@ -467,6 +630,19 @@ function talk(g, n) {
       sfx(g, 'sign');
       toast(g, `${n.name} signed off on the ${n.report.name}`, 'good', 4);
       checkReports(g);
+    }
+  } else if (n.gives && !n.gave) {
+    const want = n.wants;
+    if (want && !hasItem(p, want.item)) {
+      out.push(want.ask || `Bring me ${ITEMS[want.item].name} first.`);
+      sfx(g, 'talk');
+    } else {
+      if (want) takeItem(p, want.item);
+      n.gave = true;
+      p.items.add(n.gives);
+      out.push(n.giveLine || `Here: ${ITEMS[n.gives].name}.`);
+      toast(g, `${n.name} gave you ${ITEMS[n.gives].name}.`, 'item', 4);
+      sfx(g, 'pickup');
     }
   } else if (n.perk === 'jeopardy') {
     if (n.cooldown <= 0) { startQuiz(g, n); return; }
@@ -486,6 +662,7 @@ function talk(g, n) {
   } else {
     sfx(g, 'talk');
   }
+  if (n.physics) { n.chatCd = Math.max(n.chatCd, 25); n.hunting = false; }
   g.dialog = { name: n.name, title: n.title, lines: out, ttl: 9, npc: n };
 }
 
@@ -503,18 +680,188 @@ function grantPerk(g, n) {
     toast(g, `Management laptops are installing updates: ${joinNames(g.bosses.map((b) => b.name))} are frozen for ${FREEZE_TIME} seconds.`, 'good', 6);
   } else if (n.perk === 'flare_watch') {
     g.perks.flareWatch = true;
-    toast(g, 'Flare watch on: early warnings and a countdown to the next flare.', 'good', 5);
+    toast(g, 'Flare watch on: early warnings, and the crew shelters sooner during flares.', 'good', 5);
   } else if (n.perk === 'fast_reviews') {
     g.perks.fastReviews = true;
     toast(g, 'Your reports are pivot-tabled: management reviews now take half as long.', 'good', 5);
-  } else if (n.perk === 'recalibrate') {
-    const before = p.dose;
-    p.dose = Math.max(0, p.dose - 20);
-    toast(g, `Dosimeter recalibrated: ${before.toFixed(1)} → ${p.dose.toFixed(1)} mSv.`, 'good', 5);
   } else if (n.perk === 'people_person') {
     g.perks.shield = true;
     toast(g, `${n.name} has your back: the next time you get caught, he'll talk them down.`, 'good', 5);
+  } else if (n.perk === 'remote_access') {
+    g.perks.remote = true;
+    toast(g, 'Remote access: the vehicle dose run keeps going while you walk around.', 'good', 5);
+  } else if (n.perk === 'sim_priority') {
+    g.perks.priority = true;
+    toast(g, 'Priority queue: the vehicle dose run goes twice as fast.', 'good', 5);
+  } else if (n.perk === 'gcr_model') {
+    const r = taskReport(g, 'vehicle');
+    if (r && !r.task.done) {
+      r.task.progress = Math.min(1, r.task.progress + 0.5);
+      toast(g, `${n.name} handed over his cosmic ray transport run: vehicle dose assessment +50%.`, 'good', 5);
+      if (r.task.progress >= 1) completeTask(g, r, 'Vehicle dose assessment complete.');
+    } else {
+      toast(g, `${n.name} shows you his transport plots anyway. All of them.`, 'info', 4);
+    }
   }
+  p.drinkAnim = 0;
+}
+
+// ------------------------------------------------------------- stations --
+
+function useStation(g, s) {
+  const p = g.player;
+  if (s.type === 'srag_console') {
+    const missing = g.reports.length - readyCount(g);
+    if (missing <= 0) endGame(g, true, 'submitted');
+    else {
+      toast(g, `SRAG console: ${missing} report${missing === 1 ? '' : 's'} still need${missing === 1 ? 's' : ''} work. The Flight Director is waiting.`, 'warn', 5);
+      sfx(g, 'deny');
+    }
+    return;
+  }
+  const r = g.reports.find((rep) => rep.task && !rep.task.done && TASKS[rep.task.type].station === s.type);
+  if (!r) { toast(g, `Nothing left to do at the ${STATIONS[s.type].label}.`, 'info', 3); return; }
+  if (s.type === 'detector_bench') {
+    startCalibration(g, r);
+  } else if (s.type === 'vehicle_sim') {
+    if (!r.task.running) {
+      r.task.running = true;
+      toast(g, g.perks.remote
+        ? 'Vehicle dose run started. Remote access is on, so it keeps going wherever you are.'
+        : 'Vehicle dose run started. Stay near the console until it finishes.', 'info', 5);
+      sfx(g, 'review');
+    } else {
+      toast(g, `Vehicle dose run: ${Math.floor(r.task.progress * 100)}% done.`, 'info', 3);
+    }
+  } else if (s.type === 'dose_calc') {
+    if (!hasItem(p, 'dosimetry')) {
+      const giver = g.npcs.find((n) => n.gives === 'dosimetry');
+      toast(g, `You need the crew's dosimetry readings first.${giver ? ` ${giver.name} has them.` : ''}`, 'warn', 4);
+      sfx(g, 'deny');
+    } else if (s.cooldown > 0) {
+      toast(g, 'The workstation is still recalculating. Give it a moment.', 'info', 2);
+    } else {
+      startDoseCalc(g, r, s);
+    }
+  }
+}
+
+function completeTask(g, r, text) {
+  if (r.task.done) return;
+  r.task.done = true;
+  r.task.running = false;
+  r.task.progress = 1;
+  g.stats.tasks++;
+  toast(g, text || `${TASKS[r.task.type].label}: done.`, 'good', 5);
+  sfx(g, 'sign');
+  checkReports(g);
+}
+
+function updateStations(g, dt) {
+  const p = g.player;
+  for (const r of g.reports) {
+    const t = r.task;
+    if (!t || t.done || !t.running || t.type !== 'vehicle') continue;
+    const near = g.perks.remote || g.stations.some((s) => s.type === 'vehicle_sim' && dist(s, p) < 1.8);
+    if (!near) continue;
+    t.progress += (dt / SIM_TIME) * (g.perks.priority ? 2 : 1);
+    if (t.progress >= 1) completeTask(g, r, 'Vehicle dose assessment complete: dose maps for every crew location.');
+  }
+}
+
+// Detector calibration: a needle sweeps the gauge; press E while it's in the
+// green band. Three hits calibrates it; three misses (or the timer) fails.
+function newZone(g, w) {
+  const a = 0.08 + g.rng() * (0.84 - w);
+  return [a, a + w];
+}
+
+export const needlePos = (m) => 0.5 + 0.5 * Math.sin(m.phase);
+
+function startCalibration(g, r) {
+  const p = g.player;
+  g.mini = { kind: 'calibrate', report: r, hits: 0, need: 3, misses: 0, phase: g.rng() * 6, speed: 2.4, zone: newZone(g, 0.22), flash: 0, result: '' };
+  p.lock = p.lockMax = CAL_TIME;
+  p.lockKind = 'mini';
+  g.dialog = null;
+  sfx(g, 'review');
+}
+
+function updateMini(g, input, dt) {
+  const m = g.mini, p = g.player;
+  m.phase += m.speed * dt;
+  m.flash = Math.max(0, m.flash - dt);
+  if (input.interact) {
+    const v = needlePos(m);
+    if (v >= m.zone[0] && v <= m.zone[1]) {
+      m.hits++;
+      m.speed += 0.6;
+      m.flash = 0.3;
+      m.result = 'hit';
+      sfx(g, 'pickup');
+      if (m.hits >= m.need) { endMini(g, true); return; }
+      m.zone = newZone(g, Math.max(0.12, 0.22 - m.hits * 0.04));
+    } else {
+      m.misses++;
+      m.flash = 0.3;
+      m.result = 'miss';
+      sfx(g, 'deny');
+      if (m.misses >= 3) { endMini(g, false); return; }
+    }
+  }
+  if (p.lock <= 0) endMini(g, false);
+}
+
+function endMini(g, ok) {
+  const m = g.mini, p = g.player;
+  g.mini = null;
+  p.lock = 0;
+  p.lockKind = '';
+  if (ok) completeTask(g, m.report, 'Detector calibrated: its counts match the reference source.');
+  else { toast(g, 'The detector drifted out of calibration. Try again.', 'warn', 4); sfx(g, 'deny'); }
+}
+
+// Medical dose arithmetic with fresh numbers every time, so the answers are
+// always right by construction.
+function doseQuestion(g) {
+  const pick = (a) => a[Math.floor(g.rng() * a.length)];
+  const kind = Math.floor(g.rng() * 4);
+  let clue, ans;
+  if (kind === 0) {
+    const r = pick([0.3, 0.4, 0.5, 0.6]), d = pick([10, 20, 30, 60]);
+    clue = `On the ISS the crew gets ${r} mSv per day. Total dose for a ${d}-day stay?`;
+    ans = r * d;
+  } else if (kind === 1) {
+    const a = pick([6, 7, 8, 10]), n = pick([2, 3]);
+    clue = `Medical imaging: ${n} CT scans at ${a} mSv each, plus a 0.1 mSv chest X-ray. Total?`;
+    ans = n * a + 0.1;
+  } else if (kind === 2) {
+    const f = pick([2, 3, 4, 5]), h = pick([2, 4, 6]);
+    clue = `During the solar particle event an unsheltered crew member gets ${f} mSv per hour. Total for ${h} hours?`;
+    ans = f * h;
+  } else {
+    const d = pick([20, 30, 40, 60]), pc = pick([50, 75]);
+    clue = `Sheltering cuts a ${d} mSv dose by ${pc}%. Dose with the shelter?`;
+    ans = d * (1 - pc / 100);
+  }
+  const fmt = (v) => `${Math.round(v * 10) / 10} mSv`;
+  const wrong = [...new Set([ans * 2, ans / 2, ans * 1.5, ans + 10].map(fmt))].filter((s) => s !== fmt(ans));
+  const choices = [fmt(ans), wrong[0], wrong[1]];
+  for (let i = choices.length - 1; i > 0; i--) {
+    const j = Math.floor(g.rng() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+  return { clue, choices, answer: choices.indexOf(fmt(ans)) };
+}
+
+function startDoseCalc(g, r, s) {
+  const p = g.player;
+  const questions = [doseQuestion(g), doseQuestion(g)];
+  g.quiz = { kind: 'dosecalc', report: r, station: s, questions, step: 0, ...questions[0] };
+  p.lock = p.lockMax = QUIZ_TIME + 6;
+  p.lockKind = 'quiz';
+  g.dialog = null;
+  sfx(g, 'review');
 }
 
 // Amir's Jeopardy: one clue, three responses, keys 1-3, against the clock.
@@ -522,7 +869,7 @@ function startQuiz(g, n) {
   const q = n.quiz[n.quizIdx % n.quiz.length];
   n.quizIdx++;
   const p = g.player;
-  g.quiz = { npc: n, clue: q.clue, choices: q.choices, answer: q.answer };
+  g.quiz = { kind: 'jeopardy', npc: n, clue: q.clue, choices: q.choices, answer: q.answer };
   p.lock = p.lockMax = QUIZ_TIME;
   p.lockKind = 'quiz';
   p.lockText = '';
@@ -531,7 +878,32 @@ function startQuiz(g, n) {
 }
 
 function answerQuiz(g, idx) {
-  const q = g.quiz, n = q.npc, p = g.player;
+  const q = g.quiz, p = g.player;
+  if (q.kind === 'dosecalc') {
+    if (idx === q.answer) {
+      q.step++;
+      if (q.step < q.questions.length) {
+        Object.assign(q, q.questions[q.step]);
+        p.lock = p.lockMax = QUIZ_TIME + 6;
+        sfx(g, 'pickup');
+        return;
+      }
+      g.quiz = null;
+      p.lock = 0;
+      p.lockKind = '';
+      completeTask(g, q.report, 'Medical doses calculated and double-checked.');
+      return;
+    }
+    g.quiz = null;
+    p.lock = 0;
+    p.lockKind = '';
+    q.station.cooldown = 4;
+    g.stats.quizWrong++;
+    toast(g, idx < 0 ? 'Out of time. The numbers will still be there in a moment.' : `Recheck that one: the answer was ${q.choices[q.answer]}. Try again.`, 'warn', 5);
+    sfx(g, 'deny');
+    return;
+  }
+  const n = q.npc;
   g.quiz = null;
   p.lock = 0;
   p.lockKind = '';
@@ -553,6 +925,202 @@ function answerQuiz(g, idx) {
   g.dialog = { name: n.name, title: n.title, lines, ttl: 6, npc: n };
 }
 
+// ----------------------------------------------------------- chat traps --
+// Some coworkers hold you in a conversation. While one is talking you can't
+// move; press E to try to excuse yourself (each press shortens it). Managers
+// can still catch you while you're stuck.
+
+function startChat(g, n, { kind, lines, duration, escape = true, escort = null, onDone = null }) {
+  const p = g.player;
+  g.chat = { npc: n, kind, lines: lines.map(stripSpeaker), lineIdx: 0, lineTimer: 2.2, escape, escort, onDone, excuses: 0 };
+  p.lock = p.lockMax = duration;
+  p.lockKind = 'chat';
+  g.dialog = null;
+  n.met = true;
+  sfx(g, 'talk');
+}
+
+function trapInChat(g, n, kind, after) {
+  g.stats.trapped++;
+  if (kind === 'blackhole') {
+    n.chatCd = 30;
+    startChat(g, n, {
+      kind, lines: shuffled(g, n.blackHole.lines), duration: 5.5,
+      onDone: () => {
+        toast(g, `You escaped ${n.name}'s gravity well.`, 'info', 3);
+        if (after) after();
+      },
+    });
+  } else if (kind === 'physics') {
+    n.chatCd = 40;
+    n.hunting = false;
+    startChat(g, n, {
+      kind, lines: shuffled(g, n.physics.lines), duration: 7, escort: n.physics.home,
+      onDone: () => toast(g, `You finally got away from ${n.name}'s whiteboard.`, 'info', 3),
+    });
+  } else if (kind === 'dropin') {
+    const di = n.dropIn;
+    n.seeking = false;
+    startChat(g, n, {
+      kind, lines: shuffled(g, di.lines), duration: 4.5,
+      onDone: () => {
+        n.leaving = true;
+        toast(g, `${n.name}: ${di.exit}`, 'info', 4);
+      },
+    });
+  }
+}
+
+function shuffled(g, list) {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(g.rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function updateChat(g, input, dt) {
+  const c = g.chat, p = g.player;
+  c.lineTimer -= dt;
+  if (c.lineTimer <= 0 && c.lines.length > 1) {
+    c.lineIdx = (c.lineIdx + 1) % c.lines.length;
+    c.lineTimer = 2.2;
+  }
+  if (c.escape && input.interact) {
+    p.lock -= 0.8;
+    c.excuses++;
+    sfx(g, 'talk');
+  }
+  if (c.escort) escortStep(g, c, dt);
+  else c.npc.turnTo = Math.atan2(p.y - c.npc.y, p.x - c.npc.x);
+  if (p.lock <= 0) finishChat(g);
+}
+
+// Ryan walks you back to his whiteboard while he talks.
+function escortStep(g, c, dt) {
+  const n = c.npc, p = g.player;
+  if (dist(n, c.escort) > 0.25) followPath(g, n, c.escort, 2.2, dt);
+  const dx = n.x - p.x, dy = n.y - p.y, d = Math.hypot(dx, dy);
+  if (d > 0.9) {
+    const step = Math.min(d - 0.9, 2.6 * dt);
+    const pos = g.world.moveCircle(p.x, p.y, (dx / d) * step, (dy / d) * step, PLAYER.radius);
+    p.x = pos.x;
+    p.y = pos.y;
+    p.bob += step * 7;
+  }
+  p.a = Math.atan2(dy, dx);
+}
+
+function finishChat(g) {
+  const c = g.chat, p = g.player;
+  g.chat = null;
+  p.lock = 0;
+  p.lockKind = '';
+  if (c && c.onDone) c.onDone();
+}
+
+// Walking too close to Kevin, or letting Ryan or Neil catch up with you.
+function checkTraps(g) {
+  const p = g.player;
+  for (const n of g.npcs) {
+    if (!n.present || n.chatCd > 0) continue;
+    const d = dist(n, p);
+    if (n.blackHole && d < 1.25 && canReach(g.world, p, n)) { trapInChat(g, n, 'blackhole'); return; }
+    if (n.physics && n.hunting && d < 1.05) { trapInChat(g, n, 'physics'); return; }
+    if (n.dropIn && n.seeking && d < 1.2) { trapInChat(g, n, 'dropin'); return; }
+  }
+}
+
+// ------------------------------------------------- moving coworkers --
+// The visiting astronaut and Ryan walk patrol loops; Ryan comes after you
+// when a physics question strikes; Neil drops in from the elevator.
+
+function updateCoworkers(g, dt) {
+  const p = g.player;
+  for (const n of g.npcs) {
+    if (!n.patrol && !n.dropIn) continue;
+    n.moving = false;
+    if (g.chat && g.chat.npc === n) { turnNpc(n, dt); continue; }
+    if (n.dropIn) { updateDropIn(g, n, dt); turnNpc(n, dt); continue; }
+    const d = dist(n, p);
+    if (n.physics) {
+      if (!n.hunting && n.chatCd <= 0 && p.lock <= 0 && d < 5 && g.world.clearLine(n.x, n.y, p.x, p.y)) {
+        n.hunting = true;
+        n.huntTime = 12;
+        toast(g, `${n.name}: Hey! Got a minute? I've been stuck on this physics problem...`, 'npc', 4);
+      }
+      if (n.hunting) {
+        n.huntTime -= dt;
+        if (n.huntTime <= 0) {
+          n.hunting = false;
+          n.chatCd = 15;
+        } else if (p.lock <= 0) {
+          followPath(g, n, { x: p.x, y: p.y }, 2.0, dt);
+          turnNpc(n, dt);
+          continue;
+        }
+      }
+    }
+    if (d < 1.4) {
+      n.turnTo = Math.atan2(p.y - n.y, p.x - n.x); // politely stops to chat
+    } else if (n.pause > 0) {
+      n.pause -= dt;
+    } else {
+      const wp = n.patrol[n.patrolIdx];
+      if (dist(n, wp) < 0.2) {
+        n.patrolIdx = (n.patrolIdx + 1) % n.patrol.length;
+        n.path = null;
+        n.pause = 1 + g.rng() * 1.5;
+      } else {
+        followPath(g, n, wp, n.speed, dt);
+      }
+    }
+    turnNpc(n, dt);
+  }
+}
+
+function updateDropIn(g, n, dt) {
+  const di = n.dropIn, p = g.player;
+  if (!n.present) {
+    di.timer -= dt;
+    if (di.timer <= 0 && p.lock <= 0) {
+      Object.assign(n, { present: true, x: di.from.x, y: di.from.y, seeking: true, seekTime: 30, leaving: false, path: null });
+      toast(g, `${n.name} steps off the elevator, looking for someone to talk to.`, 'npc', 4);
+      sfx(g, 'review');
+    }
+    return;
+  }
+  if (n.leaving) {
+    if (dist(n, di.from) < 0.3) {
+      n.present = false;
+      n.leaving = false;
+      di.timer = di.every[0] + g.rng() * (di.every[1] - di.every[0]);
+      if (g.dialog && g.dialog.npc === n) g.dialog = null;
+    } else {
+      followPath(g, n, di.from, 1.8, dt);
+    }
+    return;
+  }
+  if (n.seeking) {
+    n.seekTime -= dt;
+    if (n.seekTime <= 0) {
+      n.seeking = false;
+      n.leaving = true;
+      toast(g, `${n.name} wanders back to the elevator. Nobody ever finds out why he came.`, 'npc', 4);
+    } else if (p.lock <= 0) {
+      followPath(g, n, { x: p.x, y: p.y }, 2.1, dt);
+    }
+  }
+}
+
+function turnNpc(n, dt) {
+  n.a += clamp(angleDiff(n.turnTo, n.a), -6 * dt, 6 * dt);
+  n.a = ((n.a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+}
+
+// ------------------------------------------------------------- items etc --
+
 function throwMemo(g) {
   const p = g.player;
   if (p.memos <= 0) {
@@ -564,8 +1132,7 @@ function throwMemo(g) {
   p.throwAnim = 0.3;
   g.stats.memosThrown++;
   const cx = Math.cos(p.a), cy = Math.sin(p.a);
-  const pr = { x: p.x + cx * 0.15, y: p.y + cy * 0.15, vx: cx * 9, vy: cy * 9, life: 1.2, z: 0.42, dead: false };
-  g.projectiles.push(pr);
+  g.projectiles.push({ x: p.x + cx * 0.15, y: p.y + cy * 0.15, vx: cx * 9, vy: cy * 9, life: 1.2, z: 0.42, dead: false });
   sfx(g, 'throw');
 }
 
@@ -597,8 +1164,6 @@ function updateItems(g, dt) {
     } else if (it.type === 'memos') {
       if (p.memos >= PLAYER.maxMemos) continue;
       p.memos = Math.min(PLAYER.maxMemos, p.memos + PLAYER.memoPack);
-    } else if (it.type === 'vest') {
-      p.vest = true;
     } else {
       p.items.add(it.type);
     }
@@ -622,8 +1187,8 @@ function updateProjectiles(g, dt) {
       }
       if (pr.dead) break;
       for (const n of g.npcs) {
-        if (Math.hypot(n.x - pr.x, n.y - pr.y) < 0.33) {
-          toast(g, `${n.name}: Hey! I'm working here.`, 'info', 3);
+        if (n.present && Math.hypot(n.x - pr.x, n.y - pr.y) < 0.33) {
+          toast(g, `${n.ambient ? 'A coworker' : n.name}: Hey! I'm working here.`, 'info', 3);
           sfx(g, 'land');
           pr.dead = true;
           break;
@@ -711,11 +1276,14 @@ function updateBoss(g, b, dt) {
   }
   if (b.satisfied > 0) b.satisfied -= dt;
 
-  const dx = p.x - b.x, dy = p.y - b.y, dist = Math.hypot(dx, dy);
+  // Stuck in one of Kevin's (or Ryan's, or Neil's) conversations? Managers
+  // can still walk up and grab you.
+  const exposed = p.lock <= 0 || p.lockKind === 'chat';
+  const dx = p.x - b.x, dy = p.y - b.y, dist2 = Math.hypot(dx, dy);
   let sees = false;
-  if (b.satisfied <= 0 && p.lock <= 0 && dist < d.viewRange) {
+  if (b.satisfied <= 0 && exposed && dist2 < d.viewRange) {
     const off = Math.abs(angleDiff(Math.atan2(dy, dx), b.a));
-    if ((off < d.fov / 2 || dist < 1.3) && w.clearLine(b.x, b.y, p.x, p.y)) sees = true;
+    if ((off < d.fov / 2 || dist2 < 1.3) && w.clearLine(b.x, b.y, p.x, p.y)) sees = true;
   }
   b.sees = sees;
 
@@ -729,7 +1297,7 @@ function updateBoss(g, b, dt) {
       bark(g, b, 'lost');
     }
   } else if (sees) {
-    const closeness = 1 + ((d.viewRange - dist) / d.viewRange) * 1.5;
+    const closeness = 1 + ((d.viewRange - dist2) / d.viewRange) * 1.5;
     const searching = b.state === 'search' ? 1.6 : 1;
     b.alert = Math.min(1, b.alert + (dt / d.detect) * closeness * searching * (p.running ? 1.5 : 1));
     if (b.alert >= 1) {
@@ -759,22 +1327,19 @@ function updateBoss(g, b, dt) {
       b.turnTo = b.a + (Math.sin(g.t * 1.7 + b.x) > 0 ? 1.2 : -1.2);
       if (b.searchTime <= 0) resumePatrol(b);
     }
+  } else if (b.alert > 0.25 && sees) {
+    b.turnTo = Math.atan2(dy, dx); // stops and stares
+  } else if (b.pause > 0) {
+    b.pause -= dt;
   } else {
-    // patrol
-    if (b.alert > 0.25 && sees) {
-      b.turnTo = Math.atan2(dy, dx); // stops and stares
-    } else if (b.pause > 0) {
-      b.pause -= dt;
+    const wp = b.patrol[b.patrolIdx];
+    if (Math.hypot(wp.x - b.x, wp.y - b.y) < 0.2) {
+      b.patrolIdx = (b.patrolIdx + 1) % b.patrol.length;
+      b.path = null;
+      b.pause = 0.8 + g.rng() * 0.8;
     } else {
-      const wp = b.patrol[b.patrolIdx];
-      if (Math.hypot(wp.x - b.x, wp.y - b.y) < 0.2) {
-        b.patrolIdx = (b.patrolIdx + 1) % b.patrol.length;
-        b.path = null;
-        b.pause = 0.8 + g.rng() * 0.8;
-      } else {
-        goal = wp;
-        speed = d.patrolSpeed;
-      }
+      goal = wp;
+      speed = d.patrolSpeed;
     }
   }
 
@@ -785,7 +1350,7 @@ function updateBoss(g, b, dt) {
   b.a += clamp(turn, -maxTurn, maxTurn);
   b.a = ((b.a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
-  if (b.state === 'chase' && dist < 0.6 && p.lock <= 0) catchPlayer(g, b);
+  if (b.state === 'chase' && dist2 < 0.6 && exposed) catchPlayer(g, b);
 }
 
 function resumePatrol(b) {
@@ -800,6 +1365,7 @@ function resumePatrol(b) {
   b.pathFailed = false;
 }
 
+// Moves a boss or a walking coworker one step along a grid path to goal.
 function followPath(g, b, goal, speed, dt) {
   const w = g.world;
   const bx = Math.floor(b.x), by = Math.floor(b.y);
@@ -904,6 +1470,7 @@ function updateReviews(g, dt) {
 }
 
 function catchPlayer(g, b) {
+  if (g.chat) { g.chat = null; g.player.lock = 0; }
   if (g.perks.shield) {
     // Mark S steps in and talks them down; costs you nothing.
     g.perks.shield = false;
@@ -928,16 +1495,16 @@ function catchPlayer(g, b) {
   b.alert = 0;
   resumePatrol(b);
   bark(g, b, 'catch', true);
-  if (rules.time) toast(g, `-${rules.time}s: the storm won't wait for your timesheet.`, 'warn', 4);
+  if (rules.time) toast(g, `-${rules.time}s: the deadline won't wait for your timesheet.`, 'warn', 4);
   sfx(g, 'caught', { boss: b.id });
   g.events.push({ type: 'voice', boss: b.id });
   g.events.push({ type: 'shake', amount: 10 });
 }
 
-// ------------------------------------------------------------ environment --
+// ------------------------------------------------------------ the crew --
 
-function updateStorm(g, dt) {
-  const p = g.player, f = g.flare;
+function updateCrew(g, dt) {
+  const f = g.flare;
   const progress = clamp(1 - g.timeLeft / g.diff.time, 0, 1);
   g.intensity = 0.3 + 0.7 * Math.pow(progress, 1.4);
 
@@ -945,31 +1512,27 @@ function updateStorm(g, dt) {
   if (f.state === 'idle' && f.timer <= 0) {
     f.state = 'warning';
     f.timer = g.perks.flareWatch ? 12 : 4; // Janet's console gives you a head start
-    toast(g, 'SOLAR FLARE INBOUND! Get away from the windows!', 'alarm', 4);
+    toast(g, 'SOLAR FLARE INBOUND! The crew is about to take a burst of protons.', 'alarm', 4);
     sfx(g, 'alarm');
   } else if (f.state === 'warning' && f.timer <= 0) {
     f.state = 'active';
     f.timer = 7;
-    g.events.push({ type: 'shake', amount: 5 });
+    g.events.push({ type: 'shake', amount: 3 });
     sfx(g, 'flare');
   } else if (f.state === 'active' && f.timer <= 0) {
     f.state = 'idle';
     f.timer = 30 + g.rng() * 25;
   }
 
-  const exposure = g.world.exposureAt(p.x, p.y);
-  const flare = f.state === 'active' ? 3 : 1;
-  let rate = (0.03 + 8 * Math.pow(exposure, 1.3) * g.intensity * flare) * g.diff.doseMult;
-  if (p.vest) rate *= 0.4;
-  p.doseRate = rate;
-  p.dose += rate * dt;
-  g.stats.peakDoseRate = Math.max(g.stats.peakDoseRate, rate);
+  const flare = f.state === 'active' ? (g.perks.flareWatch ? CREW.flare / 2 : CREW.flare) : 1;
+  g.crewRate = (CREW.base + CREW.ramp * g.intensity) * flare * g.diff.doseMult;
+  g.crewDose += g.crewRate * dt;
 }
 
 function updateAmbient(g, dt) {
   g.punTimer -= dt;
   if (g.punTimer <= 0 && g.puns.length) {
-    if (!g.dialog) toast(g, g.puns[Math.floor(g.rng() * g.puns.length)], 'overheard', 6);
+    if (!g.dialog && !g.chat) toast(g, g.puns[Math.floor(g.rng() * g.puns.length)], 'overheard', 6);
     g.punTimer = 22 + g.rng() * 20;
   }
 }
@@ -985,10 +1548,9 @@ export function markExplored(g, radius) {
 }
 
 const ENDINGS = {
-  shelter: { title: 'Safe in the Shelter', text: 'Every report filed, signed and stamped. The door seals behind you with a fully-approved clunk, and the CME rolls past Building 45.' },
+  submitted: { title: 'Assessment Delivered', text: 'The Flight Director has your numbers, and the crew moves to the shielded quarters in time.' },
   sanity: { title: 'Buried in Paperwork', text: 'Your sanity hit zero somewhere between the third Weekly Report and a timesheet audit.' },
-  dose: { title: 'Dose Limit Exceeded', text: 'You absorbed a solar storm... physically. Medical sent you home under a lead blanket.' },
-  time: { title: 'The CME Arrived', text: 'The storm hit before you made it to the shelter. HR will be in touch.' },
+  time: { title: 'Deadline Missed', text: 'The Flight Director had to call it without your assessment. The crew sheltered on generic guidance, and your reports are now officially late.' },
 };
 
 function endGame(g, won, reason) {
@@ -996,16 +1558,21 @@ function endGame(g, won, reason) {
   g.status = won ? 'won' : 'lost';
   const s = g.stats;
   const score = won
-    ? Math.max(0, Math.round(g.timeLeft * 10 + (PLAYER.doseLimit - p.dose) * 5 + p.sanity * 3 + s.memosHit * 25 + s.stamps * 30 - s.catches * 50))
+    ? Math.max(0, Math.round(g.timeLeft * 10 + Math.max(0, CREW.limit - g.crewDose) * 20 + p.sanity * 3 + s.memosHit * 25 + s.stamps * 30 - s.catches * 50))
     : 0;
   const rating = !won ? 'Incident report filed'
-    : score >= 2600 ? 'Employee of the Solar Cycle'
-      : score >= 2000 ? 'Exceeds Expectations'
-        : score >= 1400 ? 'Meets Expectations'
-          : 'Needs Improvement (but alive)';
-  g.result = { won, reason, ...ENDINGS[reason], score, rating, timeLeft: Math.max(0, g.timeLeft), dose: p.dose, sanity: Math.max(0, p.sanity), reports: readyCount(g) };
+    : score >= 4200 ? 'Employee of the Solar Cycle'
+      : score >= 3400 ? 'Exceeds Expectations'
+        : score >= 2400 ? 'Meets Expectations'
+          : 'Needs Improvement (but on time)';
+  g.result = {
+    won, reason, ...ENDINGS[reason], score, rating, timeLeft: Math.max(0, g.timeLeft),
+    crewDose: g.crewDose, sanity: Math.max(0, p.sanity), reports: readyCount(g),
+  };
   g.dialog = null;
   g.prompt = null;
   g.quiz = null;
+  g.mini = null;
+  g.chat = null;
   sfx(g, won ? 'win' : 'lose');
 }

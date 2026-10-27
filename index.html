@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Cosmic Cubicle Combatants</title>
-  <meta name="description" content="An intergalactic office RPG: collect four signatures and reach the storm shelter before the solar storm hits. Survive bureaucracy in space.">
+  <meta name="description" content="An office stealth game on deadline day: finish the dose reports, dodge management and chatty coworkers, and protect the astronauts before the solar storm hits.">
+
   <meta name="theme-color" content="#070b16">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23070b16'/%3E%3Ccircle cx='16' cy='16' r='11' fill='%23f2d22e'/%3E%3Cpath d='M16 16 L10 6 A11.5 11.5 0 0 1 22 6 Z M16 16 L27.5 16 A11.5 11.5 0 0 1 22 26 Z M16 16 L10 26 A11.5 11.5 0 0 1 4.5 16 Z' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23111'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="static/css/style.css">
@@ -52,18 +53,18 @@
       <header class="title-head">
         <p class="kicker" id="floor-name"></p>
         <h1 class="logo">Cosmic Cubicle Combatants</h1>
-        <p class="tagline">Survive bureaucracy in space.</p>
+        <p class="tagline">Survive the bureaucracy. Protect the crew.</p>
       </header>
 
       <div class="cols">
         <section class="card">
-          <h2>Solar storm warning</h2>
+          <h2>Deadline day</h2>
           <p id="briefing"></p>
           <ol class="steps">
-            <li>Get your reports ready: <span id="report-list"></span>. <span id="coworkers"></span> sign off on them, and some want a favor first.</li>
-            <li>Management wants <b>approval stamps</b>, and keeps asking for more. Walk up to Eddie or Clifton on purpose and press E to get one.</li>
-            <li>Reach the <b>Storm Shelter</b>, the stairwell door in the central core, before the CME arrives. Stay clear of the windows when a <b>solar flare</b> hits.</li>
-            <li>Around the floor you'll also find <span id="helpers"></span>. They're optional, and each can help you out once you find them.</li>
+            <li>Finish your reports: <span id="report-list"></span>. That means real work: calibrating a detector, running the vehicle dose model, calculating the astronauts' medical doses and debriefing a visiting astronaut.</li>
+            <li><span id="coworkers"></span> sign off on them, and some want a favor first. Management wants <b>approval stamps</b> and keeps asking for more: walk up to Eddie or Clifton on purpose and press E.</li>
+            <li>Submit everything at the <b>SRAG console</b> in the console room before the deadline. The crew's dose climbs until you do, faster during <b>solar flares</b>.</li>
+            <li>Around the floor you'll also find <span id="helpers"></span>. They're optional, and each can help you out.</li>
           </ol>
         </section>
         <section class="card">
@@ -76,7 +77,15 @@
             <img id="portrait-clifton" src="static/sprites/clifton/clifton_1.png" alt="Clifton" width="78" height="123">
             <div><h3>Clifton</h3><p>Timesheet audits. Getting caught costs sanity and 20 seconds. His stamp is mandatory.</p></div>
           </div>
-          <p class="muted small">They only see what's in front of them. Sneak behind, break line of sight, or stun them with a paper-airplane memo. Running is loud.</p>
+          <div class="hazard">
+            <canvas data-hazard="Kevin" width="84" height="100" aria-label="Kevin"></canvas>
+            <div><h3>Kevin</h3><p>A black hole of conversation. Get too close and you're pulled in. You still need his sign-off.</p></div>
+          </div>
+          <div class="hazard">
+            <canvas data-hazard="Ryan R" width="84" height="100" aria-label="Ryan R"></canvas>
+            <div><h3>Ryan R</h3><p>Has a physics problem. Will find you, and walk you back to his whiteboard to discuss it.</p></div>
+          </div>
+          <p class="muted small">Managers only see what's in front of them: sneak behind, break line of sight, or stun them with a paper-airplane memo. Running is loud. Stuck in a conversation? Press E to excuse yourself.</p>
         </section>
       </div>
 
@@ -90,7 +99,8 @@
             <tr><th>Move</th><td>W A S D</td></tr>
             <tr><th>Turn</th><td>Mouse (click the game to capture it) or ← →</td></tr>
             <tr><th>Sprint</th><td>Shift (noisy, uses stamina)</td></tr>
-            <tr><th>Talk / ask for a stamp</th><td>E or Enter</td></tr>
+            <tr><th>Talk / use / ask for a stamp</th><td>E or Enter (also: excuse yourself, tap the detector gauge)</td></tr>
+            <tr><th>Answer a question</th><td>1, 2, 3</td></tr>
             <tr><th>Throw memo</th><td>Space or click</td></tr>
             <tr><th>Drink coffee</th><td>C</td></tr>
             <tr><th>Map</th><td>M or Tab</td></tr>

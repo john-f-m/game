@@ -1,27 +1,36 @@
 # Cosmic Cubicle Combatants
 
-An intergalactic office RPG: survive bureaucracy in space. A first-person
-stealth game set on the 5th floor of Building 45, which (thanks to a clerical
-error on Form R-13) is now in orbit with a solar storm on the way.
+A first-person office stealth game set on deadline day on the 5th floor of
+Building 45. A solar particle event is heading for the crew in orbit, and the
+Flight Director needs the radiation team's dose assessment before it arrives.
+The crew's dose keeps climbing (faster during solar flares) until you submit.
 
-Before the CME arrives you need five reports ready: the Weekly Report, TPS
-Report, Mission Dose Report, Astronaut Dose Report and Astronaut Risk Report.
-Nic, Katie W., Kevin and John FM sign off on them (some want a favor first).
-Management wants approval stamps too, and every now and then a management
-review adds more, sometimes from both managers at once. Then reach the Storm
-Shelter in the stairwell.
+Five reports are due, each with real work behind it:
 
-Eddie and Clifton patrol the floor. If they catch you, you lose sanity (and,
-with Clifton, time). To get a stamp you have to walk up to them on purpose
-and press E: they stop, review the paperwork while you wait, and stamp it
-APPROVED. Solar flares make the windowed offices dangerous.
+| Report | Work | Sign-off / approval |
+|---|---|---|
+| Weekly Report | calibrate the prototype detector (Detector Lab bench) | Nic |
+| TPS Report | rescue Katie's timesheet from the copy room | Katie W. |
+| Mission Dose Report | run the vehicle dose model (console room) | Kevin (wants coffee) |
+| Astronaut Dose Report | medical dose calculations, with Ramona's dosimetry | John FM (wants a blank R-13) |
+| Astronaut Risk Report | debrief the visiting astronaut | Eddie and Clifton's stamps |
 
-Six more coworkers are optional helpers (blue "?" bubble): Ryan R (IT)
-freezes management with a forced update if you file a ticket (a memo),
-Janet (Mission Control Console) gives early flare warnings, Steve J
-(Spreadsheets) halves review time, Ramona (dosimeters) recalibrates your
-badge, Amir B quizzes you Jeopardy-style for sanity (keys 1-3), and Mark S
-(People Person) talks a manager down the next time you're caught.
+Management reviews add more approval stamps during the round. Submit
+everything at the SRAG console in the console room.
+
+Hazards: Eddie and Clifton patrol (getting caught costs sanity, and time with
+Clifton; to get a stamp, walk up and press E). Kevin is a conversational black
+hole whose gravity well pulls you in. Ryan R finds you with a physics problem
+and walks you back to his whiteboard. Neil Z, a former manager, drops in
+from the elevator now and then with a pun and no point. Press E repeatedly to
+excuse yourself from any of them.
+
+Helpers (blue "?" bubble): Ryan R (IT, freezes management if you file a memo
+as a ticket), Janet (flare warnings), Jennifer M and Mark L (console room:
+faster vehicle run, remote access), Serkan G (hands over half the vehicle run
+from his cosmic ray model), Steve J (faster approvals), Amir B (Jeopardy for
+sanity) and Mark S (talks a manager down once). Every office has its three
+occupants, and "For the children" posters are up around the floor.
 
 It is a static web page with no build step and no dependencies.
 
@@ -39,25 +48,20 @@ Any other static server works too (`python3 -m http.server`, VS Code Live Server
 
 ### homebodi.ai/game (Cloudflare, deploys from GitHub)
 
-`wrangler.jsonc` describes a Cloudflare Worker with homebodi.ai attached as a
-custom domain: the game is at `homebodi.ai/game/` and the bare domain
-redirects there. `npm run build` copies the files the site needs into
-`dist/game/` and writes that redirect page as `dist/index.html`.
+`wrangler.jsonc` describes a Cloudflare Worker that serves the game at
+`homebodi.ai/game/` and nothing else: it only answers the routes
+`homebodi.ai/game` and `homebodi.ai/game/*`, so the rest of homebodi.ai is
+untouched. `npm run build` copies the files the site needs into `dist/game/`.
 
 1. Push this folder to a GitHub repo (it can be private).
 2. Cloudflare dashboard → **Workers & Pages** → **Create** → **Import a
    repository** → pick the repo. Name the Worker
    `cosmic-cubicle-combatants` (it has to match `name` in `wrangler.jsonc`).
    Build command: `npm run build`. Deploy command: `npx wrangler deploy`.
-3. Deploying attaches homebodi.ai as the Worker's custom domain (Cloudflare
-   creates the DNS record, type "Worker").
+3. homebodi.ai needs a proxied DNS record (orange cloud) for the routes to
+   run. If nothing else is hosted there, add: type `AAAA`, name `@`,
+   address `100::`, proxied.
 4. Open <https://homebodi.ai/game/>. Every push to `main` redeploys.
-
-If you later want a different site at the root of homebodi.ai, give the game
-just the `/game` path instead: replace the custom domain in `wrangler.jsonc`
-with the routes `homebodi.ai/game` and `homebodi.ai/game/*` (each with
-`"zone_name": "homebodi.ai"`), and delete the redirect page from
-`tools/build.mjs`.
 
 To deploy from your own machine instead: `npx wrangler login`, then
 `npm run deploy`. For `www.homebodi.ai/game` too, add matching routes to
@@ -84,7 +88,9 @@ any sub-folder.
 | Move | W A S D | left thumb stick |
 | Turn | mouse (click the game to capture it) or ← → | drag on the right half |
 | Sprint | Shift (noisy, uses stamina) | push the stick all the way |
-| Talk / ask a manager for a stamp | E or Enter | Use |
+| Talk / use a station / ask a manager for a stamp | E or Enter | Use |
+| Excuse yourself from a conversation, tap the detector gauge | E (repeatedly) | Use |
+| Answer the dose calculator or Jeopardy | 1, 2, 3 | 1 2 3 buttons |
 | Throw a memo (stuns, or lures a boss to where it lands) | Space or click | Memo |
 | Drink coffee (+35 sanity) | C | Coffee |
 | Map | M or Tab | Map |
@@ -97,30 +103,34 @@ sensitivity, A/D turning instead of strafing, and pixel size.
 
 Everything is plain JSON in `static/data/`; reload the page after editing.
 
-- **`encounters.json`**: the reports (who signs off on each, and which
-  managers must stamp it from the start), coworkers (name, map position,
-  lines, what they want before signing off, sprite colours), the overheard
-  puns, and Eddie's and Clifton's lines (including what they say while
-  reviewing and approving).
+- **`encounters.json`**: the reports (their task, who signs off, which
+  managers stamp them), the named coworkers (position, lines, what they want,
+  what they give, their perk, sprite looks, and who walks a patrol or traps
+  you in conversation), the pool of lines for unnamed coworkers, the overheard
+  puns, and Eddie's and Clifton's lines. The `_help` entry at the top lists
+  every option.
 - **`office.json`**: the floor plan (one character per tile; the legend is
-  in the file), where everyone starts, the bosses' patrol routes, items, props,
-  the briefing text, and `"window_view"`: `"orbit"` (Earth and the sun) or
-  `"houston"` (daytime campus view).
+  in the file), the floor zones (corridor, office, doorway, lab, console room,
+  break room, copy room), work stations, seats for the unnamed coworkers,
+  the managers' patrol routes, items, props, the briefing text, and
+  `"window_view"` (`"houston"` campus view, or `"orbit"`).
 
 Coordinates are `[column, row]`, counting from 0 at the top-left of the map.
 If something lands inside a wall, the game moves it to the nearest open tile
 and logs a warning in the browser console. `npm test` reports it as well.
 
-Tuning numbers (storm timer, boss speed and vision, radiation, how many
-management reviews per round and how often they demand two stamps) are at
-the top of `static/scripts/game.js`.
+Tuning numbers (deadline per difficulty, manager speed and vision, how fast
+the crew's dose climbs, management reviews, minigame timings) are at the top
+of `static/scripts/game.js`.
 
-### Sprites
+### Sprites and posters
 
 `sprites/` holds the original art. `npm run sprites` (needs `ffmpeg`)
-removes the solid backgrounds, aligns the frames and writes the game-ready
-copies to `static/sprites/`. Which frame is shown from which viewing angle is
-set in `static/scripts/sprite-config.js`.
+removes the solid backgrounds, aligns the frames, turns Clifton's hair grey,
+and writes the game-ready copies to `static/sprites/`. It also crops
+`IMG_0238.jpg` into the "For the children" poster
+(`static/sprites/posters/for-the-children.png`). Which frame is shown from
+which viewing angle is set in `static/scripts/sprite-config.js`.
 
 ### Audio
 
@@ -137,8 +147,9 @@ npm test
 
 This runs the real game code headlessly. It checks that everything in the
 data files is reachable, lets bots play full rounds on every difficulty,
-fuzzes random input (looking for crashes, NaN, or walking through walls), and
-times the renderer. Add `--frames <dir>` to save screenshots (needs ffmpeg).
+fuzzes random input (looking for crashes, NaN, or walking through walls),
+tests each activity and coworker mechanic, and times the renderer. Add
+`--frames <dir>` to save screenshots (needs ffmpeg).
 
 Add `?debug` to the URL to get `window.ccc.game` in the browser console, and
 `?fps` for a frame counter.
@@ -152,7 +163,7 @@ static/data/               office.json, encounters.json
 static/sprites/            processed Eddie / Clifton frames
 static/scripts/
   game-engine.js           entry: loading, menus, main loop
-  game.js                  rules: player, bosses, items, storm, scoring
+  game.js                  rules: reports, tasks, coworkers, managers, crew dose, scoring
   world.js                 map, collision, line of sight, pathfinding
   raycaster.js             first-person renderer (pixel buffer)
   textures.js              procedural textures and small sprites

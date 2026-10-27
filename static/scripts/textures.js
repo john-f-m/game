@@ -255,29 +255,42 @@ function vending(rng, variant) {
   return t;
 }
 
-function shelter(rng) {
-  const t = new Tex(TEX, TEX).fill(hex('#6b7280'));
+// Stairwell door in the core (map tile S): steel fire door, exit sign.
+function stairwell(rng) {
+  const t = new Tex(TEX, TEX).fill(hex('#3d4859'));
   t.noise(rng, 0.08);
-  const yellow = hex('#e8c21a'), black = hex('#1b1b1b');
-  for (let y = 0; y < 64; y++) {
-    for (let x = 0; x < 64; x++) {
-      const border = x < 6 || x > 57 || y < 6 || y > 57;
-      if (border) t.px(x, y, ((x + y) >> 2) & 1 ? yellow : black);
-    }
+  t.rect(10, 8, 44, 50, hex('#5f6b7a')).rect(12, 10, 40, 48, hex('#7b8796'));
+  t.noise(rng, 0.06, 12, 10, 40, 48);
+  t.rect(12, 10, 40, 1, hex('#9aa6b5')).rect(31, 10, 2, 48, hex('#5f6b7a'));
+  t.rect(36, 32, 10, 3, hex('#c9ced6')).rect(18, 32, 10, 3, hex('#c9ced6'));
+  t.rect(20, 16, 24, 9, hex('#f4f1e8')).text('STAIRS', 21, 18, hex('#2d2a28'));
+  t.rect(22, 1, 20, 6, hex('#0e3d1e')).text('EXIT', 24, 1, hex('#5dff8a', EMISSIVE));
+  t.rect(0, 58, 64, 6, hex('#262e3a'));
+  return t;
+}
+
+// Drywall next to a doorway: wooden jambs on both edges and a header, so
+// office entrances stand out from the corridor.
+function doorFrame(rng) {
+  const t = officeWall(rng, 0);
+  const wood = hex('#8b5a2b'), woodD = hex('#6b4423');
+  t.rect(0, 0, 5, 57, wood).rect(59, 0, 5, 57, wood).rect(4, 0, 1, 57, woodD).rect(59, 0, 1, 57, woodD);
+  t.rect(0, 0, 64, 4, wood).rect(0, 4, 64, 1, woodD);
+  t.rect(22, 18, 20, 7, hex('#2d2a28')).rect(24, 20, 12, 1, hex('#e8e8e8')).rect(24, 22, 16, 1, hex('#bdbdbd'));
+  return t;
+}
+
+// A wall texture with the "for the children" poster on it. poster is a
+// 56x44 picture (static/sprites/posters/), framed with a caption below.
+function posterWall(base, poster) {
+  const t = new Tex(TEX, TEX);
+  t.data.set(base.data);
+  t.rect(2, 1, 60, 61, hex('#1f1b18')).rect(3, 2, 58, 59, hex('#f4f1e8'));
+  for (let y = 0; y < 44; y++) for (let x = 0; x < 56; x++) {
+    const c = poster.data[y * poster.w + x];
+    if (ca(c) > 0) t.px(4 + x, 3 + y, c | 0xff000000);
   }
-  t.rect(6, 6, 52, 1, hex('#9aa1ad')).rect(31, 6, 2, 52, hex('#4d535e'));
-  // Radiation trefoil.
-  const cx = 32, cy = 25;
-  t.circle(cx, cy, 12, hex('#f2d22e', EMISSIVE));
-  for (let y = cy - 11; y <= cy + 11; y++) {
-    for (let x = cx - 11; x <= cx + 11; x++) {
-      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.hypot(dx, dy);
-      const a = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
-      const sector = ((a % 120) + 120) % 120 < 60;
-      if ((r < 2.6) || (r > 4 && r < 10.5 && sector)) t.px(x, y, black);
-    }
-  }
-  t.rect(13, 44, 38, 9, hex('#f2d22e', EMISSIVE)).text('SHELTER', 18, 46, black);
+  t.text('FOR THE', 18, 49, hex('#1f1b18')).text('CHILDREN', 16, 55, hex('#1f1b18'));
   return t;
 }
 
@@ -333,6 +346,42 @@ function carpet(rng, variant) {
   for (let i = 0; i < 90; i++) t.px(rng() * 64, rng() * 64, hex('#55657a'));
   t.rect(0, 0, 64, 1, hex('#2f3a48')).rect(0, 0, 1, 64, hex('#2f3a48'));
   return t;
+}
+
+// Floors per zone (world.js ZONES): c corridor, o office, d doorway,
+// k break room, i console IT room, l lab, p copy room.
+function zoneFloor(rng, zone, variant) {
+  if (zone === 'c') return carpet(rng, variant);
+  if (zone === 'o') {
+    const t = new Tex(TEX, TEX).fill(variant ? hex('#7a6a58') : hex('#74654f'));
+    t.noise(rng, 0.18);
+    for (let i = 0; i < 70; i++) t.px(rng() * 64, rng() * 64, hex('#8e7d68'));
+    return t.rect(0, 0, 64, 1, hex('#5f5243')).rect(0, 0, 1, 64, hex('#5f5243'));
+  }
+  if (zone === 'd') {
+    const t = carpet(rng, 0);
+    return t.rect(0, 26, 64, 12, hex('#9aa1ad')).rect(0, 26, 64, 1, hex('#c9ced6')).rect(0, 37, 64, 1, hex('#6b717c'));
+  }
+  if (zone === 'k') {
+    const t = new Tex(TEX, TEX);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) t.px(x, y, ((x >> 4) + (y >> 4)) & 1 ? hex('#d9d2c0') : hex('#b9b09a'));
+    return t.noise(rng, 0.06);
+  }
+  if (zone === 'i') {
+    const t = new Tex(TEX, TEX).fill(hex('#9aa1ad'));
+    t.noise(rng, 0.05);
+    for (const v of [0, 32]) t.rect(v, 0, 1, 64, hex('#6b717c')).rect(0, v, 64, 1, hex('#6b717c'));
+    for (let y = 6; y < 64; y += 8) for (let x = 6; x < 64; x += 8) t.px(x, y, hex('#7d838c'));
+    return t;
+  }
+  if (zone === 'l') {
+    const t = new Tex(TEX, TEX).fill(hex('#e3e6ea'));
+    t.noise(rng, 0.04);
+    for (const v of [0, 21, 42]) t.rect(v, 0, 1, 64, hex('#b9bec6')).rect(0, v, 64, 1, hex('#b9bec6'));
+    return t;
+  }
+  const t = new Tex(TEX, TEX).fill(hex('#5c6470'));
+  return t.noise(rng, 0.15);
 }
 
 function ceiling(rng, light) {
@@ -489,12 +538,46 @@ export function person(look = {}, seed = 1) {
   t.rect(4, 32, 3, 3, skin).rect(21, 32, 3, 3, shade(skin, 0.85));
   t.rect(12, 17, 4, 2, hex('#f2f2f2')).rect(13, 19, 2, 1, shade(shirt, 0.6));
   t.rect(12, 15, 4, 2, shade(skin, 0.85));
+  if (look.flightsuit) {
+    // Flight suit: zipper, mission patch, name tape.
+    t.rect(13, 19, 2, 14, shade(shirt, 1.25)).circle(9.5, 22, 1.8, hex('#f2f2f2')).px(9, 22, hex('#d23c3c')).px(10, 21, hex('#2c5ec9'));
+    t.rect(16, 21, 4, 2, hex('#f2f2f2'));
+  }
+  if (look.rainbow_jacket) {
+    // Open pony-fan jacket over a white tee, rainbow stripe across the chest.
+    t.rect(12, 17, 4, 16, hex('#f6f6f6'));
+    ['#e84a4a', '#f2994a', '#f2c94c', '#6fcf97', '#56ccf2', '#bb6bd9'].forEach((c, i) => {
+      t.rect(7, 22 + i, 5, 1, hex(c)).rect(16, 22 + i, 5, 1, hex(c));
+    });
+    t.px(19, 19, hex('#ff8ad8')).px(20, 19, hex('#ff8ad8')).px(19, 20, hex('#ffd1f0'));
+  }
+  if (look.dress_shirt) {
+    t.rect(13, 19, 2, 13, shade(shirt, 0.82)).px(13, 22, hex('#f2f2f2')).px(13, 26, hex('#f2f2f2'));
+    t.rect(4, 30, 3, 2, hex('#f6f8fb')).rect(21, 30, 3, 2, hex('#e3e8ef'));
+  }
+  if (look.bracelets) {
+    ['#ff8ad8', '#56ccf2', '#f2c94c'].forEach((c, i) => { t.px(4 + i, 31, hex(c)); t.px(21 + i, 31, hex(c)); });
+  }
   t.rect(9, 4, 10, 11, skin).rect(17, 4, 2, 11, shade(skin, 0.88));
-  t.rect(8, 2, 12, 4, hair).rect(8, 6, 2, 4, hair).rect(18, 6, 2, 3, hair);
-  if (look.long_hair) t.rect(7, 5, 3, 13, hair).rect(18, 5, 3, 13, hair);
+  if (look.bald) {
+    t.rect(9, 2, 10, 3, skin).rect(10, 1, 8, 1, skin).rect(17, 2, 2, 3, shade(skin, 0.88)).rect(11, 2, 3, 1, shade(skin, 1.15));
+  } else {
+    t.rect(8, 2, 12, 4, hair).rect(8, 6, 2, 4, hair).rect(18, 6, 2, 3, hair);
+    if (look.long_hair) t.rect(7, 5, 3, 13, hair).rect(18, 5, 3, 13, hair);
+  }
   t.px(11, 9, dark).px(16, 9, dark).rect(12, 12, 4, 1, hex('#8a4a3a'));
-  if (look.glasses) t.rect(10, 8, 3, 3, dark).rect(15, 8, 3, 3, dark).rect(13, 9, 2, 1, dark).px(11, 9, hex('#9fd3ff')).px(16, 9, hex('#9fd3ff'));
+  if (look.glasses === 'thick') {
+    t.rect(9, 7, 4, 4, dark).rect(15, 7, 4, 4, dark).rect(13, 8, 2, 1, dark).rect(10, 8, 2, 2, hex('#cfe9ff')).rect(16, 8, 2, 2, hex('#cfe9ff'));
+    t.px(11, 9, dark).px(16, 9, dark);
+  } else if (look.glasses) {
+    t.rect(10, 8, 3, 3, dark).rect(15, 8, 3, 3, dark).rect(13, 9, 2, 1, dark).px(11, 9, hex('#9fd3ff')).px(16, 9, hex('#9fd3ff'));
+  }
   if (look.beard) t.rect(9, 11, 10, 4, hair).rect(10, 15, 8, 1, hair).rect(12, 12, 4, 1, hex('#8a4a3a'));
+  if (look.mustache) {
+    // Big plumber-style mustache.
+    const m = hex(look.mustache);
+    t.rect(10, 11, 8, 2, m).rect(9, 12, 2, 2, m).rect(17, 12, 2, 2, m).rect(12, 10, 4, 1, m);
+  }
   if (look.tie) t.rect(13, 19, 2, 11, hex(look.tie)).rect(12, 29, 4, 2, hex(look.tie));
   if (look.headset) {
     // Mission Control headset: band over the head, earpiece, boom mic.
@@ -526,10 +609,11 @@ function item(type) {
     t.rect(2, 2, 16, 18, hex('#8b5a2b')).rect(4, 5, 12, 14, hex('#fbfbf6')).rect(7, 1, 6, 4, hex('#b9c0c8'));
     t.text('R13', 4, 7, hex('#c0392b'));
     for (let y = 14; y < 18; y += 2) t.rect(5, y, 10, 1, hex('#9a9a94'));
-  } else if (type === 'vest') {
-    t.rect(4, 4, 12, 15, hex('#5d6b7a')).rect(3, 7, 14, 11, hex('#5d6b7a')).rect(5, 1, 3, 4, hex('#3d4754')).rect(12, 1, 3, 4, hex('#3d4754'));
-    t.rect(8, 4, 4, 2, 0);
-    t.circle(10, 12, 3.2, hex('#f2d22e')).px(10, 12, dark).px(9, 10, dark).px(11, 10, dark).px(8, 13, dark).px(12, 13, dark);
+  } else if (type === 'dosimetry') {
+    // Folder of dosimeter readouts with a badge clipped on.
+    t.rect(2, 4, 16, 14, hex('#2c5ec9')).rect(4, 2, 12, 14, hex('#fbfbf6'));
+    for (let y = 5; y < 14; y += 2) t.rect(6, y, 8, 1, hex('#9a9a94'));
+    t.rect(11, 9, 6, 8, hex('#e8e8e8')).rect(12, 10, 4, 3, hex('#d8342c')).rect(13, 7, 2, 2, hex('#9aa1ad'));
   }
   return t.outline(dark);
 }
@@ -576,6 +660,26 @@ function decor(type, rng) {
     c.rect(6, 21, 28, 2, hex('#2a2e36'));
     return c.outline(dark);
   }
+  if (type === 'bench') {
+    // Detector test bench: oscilloscope, a detector tube on a stand, cables.
+    const b = new Tex(40, 26);
+    b.rect(1, 12, 38, 4, hex('#c9ced6')).rect(1, 15, 38, 1, hex('#8a9099')).rect(3, 16, 3, 10, hex('#6b717c')).rect(34, 16, 3, 10, hex('#6b717c'));
+    b.rect(3, 2, 14, 10, hex('#3a3f48')).rect(4, 3, 9, 7, hex('#0b1a12', EMISSIVE));
+    for (let x = 0; x < 9; x++) b.px(4 + x, 6 + Math.round(Math.sin(x * 1.4) * 2), hex('#3cff6e', EMISSIVE));
+    b.rect(14, 4, 2, 2, hex('#ffb13b', EMISSIVE)).rect(14, 7, 2, 2, hex('#9aa1ad'));
+    b.rect(22, 3, 5, 9, hex('#d9a441')).rect(23, 1, 3, 2, hex('#9aa1ad')).rect(28, 9, 8, 3, hex('#5a6270'));
+    b.rect(17, 8, 5, 1, hex('#e84a4a')).rect(27, 6, 1, 4, hex('#2c5ec9'));
+    return b.outline(dark);
+  }
+  if (type === 'desk') {
+    // Workstation: desk, monitor showing a dose table, keyboard.
+    const d = new Tex(34, 26);
+    d.rect(1, 14, 32, 3, hex('#8b5a2b')).rect(1, 16, 32, 1, hex('#6b4423')).rect(3, 17, 3, 9, hex('#6b4423')).rect(28, 17, 3, 9, hex('#6b4423'));
+    d.rect(9, 1, 16, 11, hex('#22262e')).rect(10, 2, 14, 8, hex('#e8f2ff', EMISSIVE));
+    for (let y = 3; y < 10; y += 2) d.rect(11, y, 12, 1, hex('#6fa8dc', EMISSIVE));
+    d.rect(16, 11, 2, 3, hex('#3a3f48')).rect(10, 13, 14, 1, hex('#c9ced6'));
+    return d.outline(dark);
+  }
   const t = new Tex(16, 18);
   t.rect(3, 6, 10, 11, hex('#6b717c'));
   for (let x = 4; x < 13; x += 2) t.rect(x, 7, 1, 9, hex('#4f545d'));
@@ -603,6 +707,21 @@ function icon(kind) {
     const t = new Tex(11, 15);
     const y = hex('#ffd84a');
     t.rect(2, 1, 7, 2, y).rect(7, 2, 2, 4, y).rect(4, 6, 4, 2, y).rect(4, 8, 2, 2, y).rect(4, 11, 2, 2, y);
+    return t.outline(dark);
+  }
+  if (kind === 'task') {
+    // Orange bubble with a checklist: work waiting at this station.
+    const t = new Tex(13, 14);
+    const bg = hex('#ff9d3b');
+    t.rect(1, 1, 11, 9, bg).rect(2, 0, 9, 11, bg).tri(3, 9, 7, 9, 3, 13, bg);
+    for (const y of [2, 5, 8]) t.rect(3, y, 2, 2, dark).rect(6, y, 4, 1, dark);
+    return t.outline(dark);
+  }
+  if (kind === 'swirl') {
+    // Kevin's gravity well.
+    const t = new Tex(15, 15);
+    t.circle(7.5, 7.5, 7, hex('#3b1f5a')).circle(7.5, 7.5, 5, hex('#5b2f8a')).circle(7.5, 7.5, 2.5, hex('#0b0612'));
+    for (let a = 0; a < 6.28; a += 0.5) t.px(7.5 + Math.cos(a) * (3 + a * 0.6), 7.5 + Math.sin(a) * (3 + a * 0.6), hex('#c9a6ff'));
     return t.outline(dark);
   }
   if (kind === 'update') {
@@ -651,7 +770,8 @@ function hand(kind) {
 }
 
 // Builds every texture and procedural sprite the renderer needs.
-export function buildTextures(npcLooks = [], view = 'orbit') {
+// extras.poster: optional 56x44 picture for the "for the children" posters.
+export function buildTextures(npcLooks = [], view = 'houston', extras = {}) {
   const rng = mulberry32(1337);
   const walls = {
     1: [bulkhead(rng, 0), bulkhead(rng, 0), bulkhead(rng, 1), bulkhead(rng, 2)],
@@ -661,24 +781,32 @@ export function buildTextures(npcLooks = [], view = 'orbit') {
     5: [whiteboard(rng)],
     6: [server(rng, 0)],
     7: [vending(rng, 0), vending(rng, 1)],
-    8: [shelter(rng)],
+    8: [stairwell(rng)],
     9: [officeWall(rng, 0), officeWall(rng, 1), officeWall(rng, 0), officeWall(rng, 2), officeWall(rng, 1), officeWall(rng, 3), officeWall(rng, 0), officeWall(rng, 4)],
     10: [elevator(rng)],
   };
+  // The poster goes up on drywall, cubicles and the core walls.
+  if (extras.poster) {
+    walls[9].push(posterWall(walls[9][0], extras.poster), posterWall(walls[9][2], extras.poster));
+    walls[3].push(posterWall(walls[3][0], extras.poster));
+    walls[1].push(posterWall(walls[1][0], extras.poster));
+  }
   const serverAlt = [server(rng, 1)];
-  const pano = view === 'houston' ? houstonPanorama(rng) : panorama(rng);
+  const pano = view === 'orbit' ? panorama(rng) : houstonPanorama(rng);
+  const floors = ['c', 'o', 'd', 'k', 'i', 'l', 'p'].map((z) => [zoneFloor(rng, z, 0), zoneFloor(rng, z, 1)]);
   return {
     walls,
+    doorFrame: doorFrame(rng),
     serverAlt,
-    floor: [carpet(rng, 0), carpet(rng, 1)],
+    floors,
     ceiling: [ceiling(rng, false), ceiling(rng, true)],
     pano: pano.tex,
     glow: pano.glow,
     people: npcLooks.map((look, i) => person(look, 50 + i)),
     genericPerson: person({ hair: '#555', shirt: '#888', pants: '#333' }, 7),
-    items: Object.fromEntries(['coffee', 'memos', 'timesheet', 'r13', 'vest'].map((k) => [k, item(k)])),
-    decor: Object.fromEntries(['plant', 'cooler', 'printer', 'trash', 'console'].map((k) => [k, decor(k, rng)])),
-    icons: Object.fromEntries(['talk', 'check', 'help', 'alert', 'question', 'stun', 'update', 'stamp', 'memo'].map((k) => [k, icon(k)])),
+    items: Object.fromEntries(['coffee', 'memos', 'timesheet', 'r13', 'dosimetry'].map((k) => [k, item(k)])),
+    decor: Object.fromEntries(['plant', 'cooler', 'printer', 'trash', 'console', 'bench', 'desk'].map((k) => [k, decor(k, rng)])),
+    icons: Object.fromEntries(['talk', 'check', 'help', 'task', 'swirl', 'alert', 'question', 'stun', 'update', 'stamp', 'memo'].map((k) => [k, icon(k)])),
     hands: { memo: hand('memo'), coffee: hand('coffee'), empty: hand('empty') },
   };
 }
