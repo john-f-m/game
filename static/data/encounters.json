@@ -1,5 +1,5 @@
 {
-  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop; 'black_hole', 'physics' and 'drop_in' are the conversation traps.",
+  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop. Conversation traps: 'black_hole' (pulls you in when you get close), 'physics' (triggers when you talk to them three times in quick succession, then walks you to their 'home' spot) and 'drop_in' (arrives from the elevator now and then and seeks you out).",
   "reports": [
     { "id": "weekly", "name": "Weekly Report", "task": "detector", "signoff": "Nic" },
     { "id": "tps", "name": "TPS Report", "signoff": "Katie W." },
@@ -173,6 +173,22 @@
       "perk_line": "Vehicle dose? I already modeled it. Twice. Here, take my run, it's half done."
     },
     {
+      "location": [29, 5],
+      "npc": "Pat O",
+      "title": "Galactic cosmic ray model",
+      "look": { "hair": "#b5b5b5", "skin": "#e8b48c", "shirt": "#8a6f4e", "pants": "#3b3b3b", "glasses": true, "mustache": "#b5b5b5" },
+      "lines": [
+        "🗣️ Pat O: I once told a joke about a cosmic ray. It went right through everyone.",
+        "🗣️ Pat O: Back in my day we tracked cosmic rays with a cloud chamber and a lot of patience. Mostly patience.",
+        "🗣️ Pat O: Heavy ions. Still lighter than my thesis committee.",
+        "🗣️ Pat O: My GCR model has been around the galaxy a few times. Like me. Your vehicle run? Oh, I wouldn't know.",
+        "🗣️ Pat O: Remember when the solar minimum was a minimum? Good times. Good, low-flux times.",
+        "🗣️ Pat O: A neutron walks into a bar and asks the price. The bartender says: for you, no charge.",
+        "🗣️ Pat O: They don't make particles like they used to. Well, they do. That's the problem.",
+        "🗣️ Pat O: Help with your report? Ha! Did I ever tell you about the 1989 solar storm? What a year."
+      ]
+    },
+    {
       "location": [24, 7],
       "npc": "Amir B",
       "title": "Jeopardy Aficionado",
@@ -284,7 +300,8 @@
     "🗣️ Someone mutters: ‘Steve put the coffee budget in a pivot table and now nobody's allowed coffee.’",
     "🗣️ From the console room: ‘Serkan, is that a pony on your jacket?’ ‘It's a cutie mark. Also, your shielding model is wrong.’",
     "🗣️ Someone whispers: ‘Don't make eye contact with Kevin. Don't make eye contact with Kevin.’",
-    "🗣️ Overheard near a whiteboard: ‘...and that's why the muon thinks the hallway is shorter.’"
+    "🗣️ Overheard near a whiteboard: ‘...and that's why the muon thinks the hallway is shorter.’",
+    "🗣️ From the north-east office: ‘Pat, does your cosmic ray model run on anything newer than Fortran 77?’ ‘Run? It strolls.’"
   ],
   "bosses": {
     "eddie": {

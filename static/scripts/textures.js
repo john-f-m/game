@@ -785,17 +785,16 @@ export function buildTextures(npcLooks = [], view = 'houston', extras = {}) {
     9: [officeWall(rng, 0), officeWall(rng, 1), officeWall(rng, 0), officeWall(rng, 2), officeWall(rng, 1), officeWall(rng, 3), officeWall(rng, 0), officeWall(rng, 4)],
     10: [elevator(rng)],
   };
-  // The poster goes up on drywall, cubicles and the core walls.
-  if (extras.poster) {
-    walls[9].push(posterWall(walls[9][0], extras.poster), posterWall(walls[9][2], extras.poster));
-    walls[3].push(posterWall(walls[3][0], extras.poster));
-    walls[1].push(posterWall(walls[1][0], extras.poster));
-  }
+  // The poster, ready for the few walls office.json puts it on.
+  const posters = extras.poster
+    ? Object.fromEntries([1, 3, 9].map((tile) => [tile, posterWall(walls[tile][0], extras.poster)]))
+    : {};
   const serverAlt = [server(rng, 1)];
   const pano = view === 'orbit' ? panorama(rng) : houstonPanorama(rng);
   const floors = ['c', 'o', 'd', 'k', 'i', 'l', 'p'].map((z) => [zoneFloor(rng, z, 0), zoneFloor(rng, z, 1)]);
   return {
     walls,
+    posters,
     doorFrame: doorFrame(rng),
     serverAlt,
     floors,

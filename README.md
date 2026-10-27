@@ -20,17 +20,25 @@ everything at the SRAG console in the console room.
 
 Hazards: Eddie and Clifton patrol (getting caught costs sanity, and time with
 Clifton; to get a stamp, walk up and press E). Kevin is a conversational black
-hole whose gravity well pulls you in. Ryan R finds you with a physics problem
-and walks you back to his whiteboard. Neil Z, a former manager, drops in
-from the elevator now and then with a pun and no point. Press E repeatedly to
-excuse yourself from any of them.
+hole whose gravity well pulls you in. Neil Z, a former manager, drops in from
+the elevator now and then with a pun and no point. Press E repeatedly to
+excuse yourself from either of them.
 
 Helpers (blue "?" bubble): Ryan R (IT, freezes management if you file a memo
-as a ticket), Janet (flare warnings), Jennifer M and Mark L (console room:
+as a ticket; bother him three times in a row and he walks you to his
+whiteboard for a physics problem), Janet (flare warnings), Jennifer M and Mark L (console room:
 faster vehicle run, remote access), Serkan G (hands over half the vehicle run
 from his cosmic ray model), Steve J (faster approvals), Amir B (Jeopardy for
-sanity) and Mark S (talks a manager down once). Every office has its three
-occupants, and "For the children" posters are up around the floor.
+sanity) and Mark S (talks a manager down once). Pat O has a galactic cosmic
+ray model and is no help at all, just nostalgic physics puns. Every office has
+its three occupants, and two "For the children" posters are up on the floor
+(their walls are listed under `posters` in `office.json`).
+
+The background music is a medley of genre versions of the Nyan Cat theme
+(`audio/nyancat-medley.m4a`, cut from `NyanCat.m4a` by
+`node tools/process-music.mjs`). It jumps to a different version when a
+manager starts chasing you or a solar flare hits, speeds up near the deadline,
+and slows down inside Kevin's gravity well. Music has its own on/off setting.
 
 It is a static web page with no build step and no dependencies.
 

@@ -110,6 +110,7 @@ export class Raycaster {
 
   wallTexture(tile, mx, my, time, world) {
     if (tile === T.SERVER && ((time * 2) | 0) & 1) return this.tx.serverAlt[0];
+    if (world.posters[my * world.w + mx] && this.tx.posters[tile]) return this.tx.posters[tile];
     if (tile === T.OFFICE && world.doorAdj[my * world.w + mx]) return this.tx.doorFrame;
     const list = this.tx.walls[tile] || this.tx.walls[T.BULKHEAD];
     return list[tileHash(mx, my) % list.length];
@@ -212,15 +213,14 @@ export class Raycaster {
       list.push({ x: n.x, y: n.y, z, h: 0.7, tex: tx.people[n.index] || tx.genericPerson });
       // Yellow "!" = report sign-off (or debrief) still needed, blue "?" =
       // optional help available, green check = done. Kevin's gravity well
-      // and Ryan's incoming physics problem get warnings instead.
+      // gets a warning instead.
       const icon = n.blackHole && n.chatCd <= 0 ? tx.icons.swirl
-        : n.physics && n.hunting ? tx.icons.alert
-          : n.report && !n.signed ? tx.icons.talk
-            : n.debrief ? (astronautDue ? tx.icons.talk : null)
-              : n.gives ? (n.gave ? tx.icons.check : tx.icons.talk)
-                : n.perk === 'jeopardy' ? (n.cooldown <= 0 ? tx.icons.help : null)
-                  : n.perk && !n.perkUsed ? tx.icons.help
-                    : n.report || n.perkUsed ? tx.icons.check : null;
+        : n.report && !n.signed ? tx.icons.talk
+          : n.debrief ? (astronautDue ? tx.icons.talk : null)
+            : n.gives ? (n.gave ? tx.icons.check : tx.icons.talk)
+              : n.perk === 'jeopardy' ? (n.cooldown <= 0 ? tx.icons.help : null)
+                : n.perk && !n.perkUsed ? tx.icons.help
+                  : n.report || n.perkUsed ? tx.icons.check : null;
       if (icon) list.push({ x: n.x, y: n.y, z: 0.76 + z + Math.sin(time * 3 + n.index) * 0.015, h: icon === tx.icons.swirl ? 0.16 : 0.12, tex: icon, bright: true });
     }
     for (const s of g.stations) {

@@ -65,6 +65,16 @@ export class World {
     }
     this.zones = new Uint8Array(this.w * this.h);
     this.doorAdj = new Uint8Array(this.w * this.h);
+    this.posters = new Uint8Array(this.w * this.h);
+  }
+
+  // Wall tiles that carry the "for the children" poster (office.json "posters").
+  setPosters(list, warn = () => {}) {
+    for (const at of Array.isArray(list) ? list : []) {
+      const [x, y] = Array.isArray(at) ? at : [];
+      if (Number.isInteger(x) && Number.isInteger(y) && this.isWall(x, y) && x >= 0 && y >= 0 && x < this.w && y < this.h) this.posters[y * this.w + x] = 1;
+      else warn(`office.json posters: ${JSON.stringify(at)} is not a wall tile`);
+    }
   }
 
   // rows: strings like the map, one zone letter per floor tile (see ZONES).

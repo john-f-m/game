@@ -111,14 +111,12 @@ export function drawHud(ctx, g, o) {
     ctx.fillText(label, cx, cy - 40 * u);
     ctx.globalAlpha = 1;
   }
-  // Coworker hazards: Kevin's pull, Ryan closing in, Neil wandering about.
+  // Coworker hazards: Kevin's pull, Neil wandering about.
   if (p.lock <= 0) {
     const kevin = g.npcs.find((n) => n.blackHole && n.present && n.chatCd <= 0 && Math.hypot(n.x - p.x, n.y - p.y) < n.blackHole.radius);
-    const ryan = g.npcs.find((n) => n.physics && n.hunting);
     const neil = g.npcs.find((n) => n.dropIn && n.present && n.seeking);
     const warn = kevin ? [`${kevin.name.toUpperCase()}'S GRAVITY WELL: walk away!`, '#c9a6ff']
-      : ryan ? [`${ryan.name} is coming over with a physics problem`, '#ffc68a']
-        : neil ? [`${neil.name} is on the floor, looking for someone to talk to`, '#ffc68a'] : null;
+      : neil ? [`${neil.name} is on the floor, looking for someone to talk to`, '#ffc68a'] : null;
     if (warn) {
       ctx.font = font(14 * u, 800);
       ctx.textAlign = 'center';
@@ -629,7 +627,7 @@ export function drawMinimap(ctx, g, x0, y0, maxW, maxH, u, time, full) {
     ctx.fillStyle = n.blackHole && !n.signed ? '#c9a6ff'
       : n.report ? (n.signed ? '#5fd38d' : '#ffd84a')
         : n.debrief ? '#7fd6ff'
-          : n.physics || n.dropIn ? '#ffc68a'
+          : n.dropIn ? '#ffc68a'
             : helps ? '#6fb7ff' : '#7f8da3';
     ctx.fill();
   }

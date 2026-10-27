@@ -313,14 +313,17 @@ console.log('4. Activities and coworkers');
   run(g, 4, () => ({ interact: g.chat && (presses++ % 6 === 0) }));
   expect(!g.chat && kevin.chatCd > 0, 'mashing E gets you out, and his pull switches off for a while');
 
-  // Ryan's physics problem walks you back to his whiteboard.
+  // Ryan helps, but bother him three times in a row and he walks you to his
+  // whiteboard for a physics problem.
   g = fresh();
   const ryan = npc(g, 'Ryan R');
   Object.assign(ryan, { x: 10.5, y: 12.5 });
   Object.assign(g.player, { x: 10.5, y: 15.5, a: -Math.PI / 2 });
   run(g, 4);
-  expect(g.chat?.kind === 'physics', 'Ryan R spots you, catches up and starts a physics discussion');
-  run(g, 8);
+  expect(!g.chat, 'Ryan R does not come after you');
+  for (let i = 0; i < 3 && !g.chat; i++) { standAt(g, ryan); press(g); run(g, 0.3); g.dialog = null; }
+  expect(g.chat?.kind === 'physics', 'the third quick conversation with Ryan R turns into a physics problem');
+  run(g, 9);
   expect(near(g.player, ryan.physics.home) < 2.5, `you end up at his whiteboard (${near(g.player, ryan.physics.home).toFixed(1)} tiles away)`);
 
   // Neil drops in, delivers a pun, and leaves.

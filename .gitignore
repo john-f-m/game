@@ -3,3 +3,5 @@ dist/
 .wrangler/
 .DS_Store
 .claude/
+# 22 MB source for audio/nyancat-medley.m4a (see tools/process-music.mjs)
+/NyanCat.m4a

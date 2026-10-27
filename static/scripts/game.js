@@ -73,6 +73,7 @@ const QUIZ_COOLDOWN = 35;
 const FREEZE_TIME = 15;
 const CAL_TIME = 20;
 const SIM_TIME = 16;
+const BOTHER_LIMIT = 3; // talks to Ryan within 40 s before the physics lesson
 
 // What getting caught costs, per boss.
 const CATCH_RULES = {
@@ -149,6 +150,7 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
   const rng = mulberry32(seed);
   const world = new World(office.map, warn);
   world.setZones(office.zones, warn);
+  world.setPosters(office.posters, warn);
 
   const place = (at, label) => {
     let x = Array.isArray(at) ? Math.floor(Number(at[0])) : NaN;
@@ -299,7 +301,7 @@ function baseNpc(index, name, x, y, look) {
     blackHole: null, physics: null, debrief: null, dropIn: null, present: true,
     patrol: null, patrolIdx: 0, speed: 1.4, path: null, pathKey: '', repath: 0, pathFailed: false,
     a: Math.PI / 2, turnTo: Math.PI / 2, moving: false, walkPhase: 0, pause: 0,
-    chatCd: 0, hunting: false, huntTime: 0, seeking: false, seekTime: 0, leaving: false,
+    chatCd: 0, bother: [], seeking: false, seekTime: 0, leaving: false,
   };
 }
 
@@ -598,6 +600,16 @@ function talk(g, n) {
     trapInChat(g, n, 'blackhole', () => talk(g, n));
     return;
   }
+  // Ryan helps, but bother him too often and it turns into a physics lesson.
+  if (n.physics) {
+    n.bother = n.bother.filter((t) => g.t - t < 40);
+    n.bother.push(g.t);
+    if (n.bother.length >= BOTHER_LIMIT && n.chatCd <= 0) {
+      toast(g, `You've bothered ${n.name} once too often. Now he has a physics problem for you.`, 'npc', 4);
+      trapInChat(g, n, 'physics');
+      return;
+    }
+  }
   const out = [stripSpeaker(n.lines[n.talkCount % n.lines.length])];
   n.talkCount++;
   n.met = true;
@@ -662,7 +674,7 @@ function talk(g, n) {
   } else {
     sfx(g, 'talk');
   }
-  if (n.physics) { n.chatCd = Math.max(n.chatCd, 25); n.hunting = false; }
+  if (n.physics && n.bother.length === BOTHER_LIMIT - 1) out.push("Anything else? Because I've got this physics problem...");
   g.dialog = { name: n.name, title: n.title, lines: out, ttl: 9, npc: n };
 }
 
@@ -953,7 +965,7 @@ function trapInChat(g, n, kind, after) {
     });
   } else if (kind === 'physics') {
     n.chatCd = 40;
-    n.hunting = false;
+    n.bother = [];
     startChat(g, n, {
       kind, lines: shuffled(g, n.physics.lines), duration: 7, escort: n.physics.home,
       onDone: () => toast(g, `You finally got away from ${n.name}'s whiteboard.`, 'info', 3),
@@ -1020,21 +1032,20 @@ function finishChat(g) {
   if (c && c.onDone) c.onDone();
 }
 
-// Walking too close to Kevin, or letting Ryan or Neil catch up with you.
+// Walking too close to Kevin, or letting Neil catch up with you.
 function checkTraps(g) {
   const p = g.player;
   for (const n of g.npcs) {
     if (!n.present || n.chatCd > 0) continue;
     const d = dist(n, p);
     if (n.blackHole && d < 1.25 && canReach(g.world, p, n)) { trapInChat(g, n, 'blackhole'); return; }
-    if (n.physics && n.hunting && d < 1.05) { trapInChat(g, n, 'physics'); return; }
     if (n.dropIn && n.seeking && d < 1.2) { trapInChat(g, n, 'dropin'); return; }
   }
 }
 
 // ------------------------------------------------- moving coworkers --
-// The visiting astronaut and Ryan walk patrol loops; Ryan comes after you
-// when a physics question strikes; Neil drops in from the elevator.
+// The visiting astronaut and Ryan walk patrol loops; Neil drops in from the
+// elevator.
 
 function updateCoworkers(g, dt) {
   const p = g.player;
@@ -1044,24 +1055,6 @@ function updateCoworkers(g, dt) {
     if (g.chat && g.chat.npc === n) { turnNpc(n, dt); continue; }
     if (n.dropIn) { updateDropIn(g, n, dt); turnNpc(n, dt); continue; }
     const d = dist(n, p);
-    if (n.physics) {
-      if (!n.hunting && n.chatCd <= 0 && p.lock <= 0 && d < 5 && g.world.clearLine(n.x, n.y, p.x, p.y)) {
-        n.hunting = true;
-        n.huntTime = 12;
-        toast(g, `${n.name}: Hey! Got a minute? I've been stuck on this physics problem...`, 'npc', 4);
-      }
-      if (n.hunting) {
-        n.huntTime -= dt;
-        if (n.huntTime <= 0) {
-          n.hunting = false;
-          n.chatCd = 15;
-        } else if (p.lock <= 0) {
-          followPath(g, n, { x: p.x, y: p.y }, 2.0, dt);
-          turnNpc(n, dt);
-          continue;
-        }
-      }
-    }
     if (d < 1.4) {
       n.turnTo = Math.atan2(p.y - n.y, p.x - n.x); // politely stops to chat
     } else if (n.pause > 0) {

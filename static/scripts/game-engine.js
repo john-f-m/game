@@ -36,7 +36,7 @@ let showMap = false, shake = 0, lastFrame = performance.now(), acc = 0, fps = 60
 // Browser storage can be unavailable (private mode, blocked cookies), so
 // every access is guarded and the game works without it.
 
-const DEFAULT_SETTINGS = { sound: true, sensitivity: 1, classicTurn: false, pixels: 300, difficulty: 'analyst' };
+const DEFAULT_SETTINGS = { sound: true, music: true, sensitivity: 1, classicTurn: false, pixels: 300, difficulty: 'analyst' };
 
 function readStore(key, fallback) {
   try {
@@ -116,6 +116,7 @@ async function boot() {
   try {
     const [office, encounters] = await Promise.all([loadJSON('data/office.json'), loadJSON('data/encounters.json')]);
     data = { office, encounters };
+    sound.setMusic(office.music);
     // The demo round behind the title screen also tells us everyone's look,
     // including the unnamed coworkers, so sprites can be built for all.
     demo = createGame({ office, encounters, seed: 7, warn: (m) => console.warn(m) });
@@ -229,6 +230,8 @@ setInterval(() => {
 
 function applySettings() {
   sound.setMuted(!settings.sound);
+  sound.setMusicEnabled(settings.music);
+  $('opt-music').checked = settings.music;
   input.sensitivity = settings.sensitivity;
   input.classicTurn = settings.classicTurn;
   imageData = null; // rebuild the frame buffer at the new pixel size
@@ -239,6 +242,7 @@ function applySettings() {
 }
 
 $('opt-sound').addEventListener('change', (e) => { settings.sound = e.target.checked; applySettings(); writeStore('ccc.settings', settings); });
+$('opt-music').addEventListener('change', (e) => { settings.music = e.target.checked; applySettings(); writeStore('ccc.settings', settings); });
 $('opt-sens').addEventListener('input', (e) => { settings.sensitivity = Number(e.target.value) || 1; applySettings(); writeStore('ccc.settings', settings); });
 $('opt-classic').addEventListener('change', (e) => { settings.classicTurn = e.target.checked; applySettings(); writeStore('ccc.settings', settings); });
 $('opt-pixels').addEventListener('change', (e) => { settings.pixels = Number(e.target.value) || 300; applySettings(); writeStore('ccc.settings', settings); });
@@ -343,6 +347,16 @@ $('again').addEventListener('click', () => startGame(game ? game.difficulty : se
 $('menu').addEventListener('click', quitToTitle);
 $('reload').addEventListener('click', () => location.reload());
 
+// Browsers only allow audio after the player interacts with the page, so the
+// first click or key press anywhere (even on the title screen) starts it.
+const firstGesture = () => {
+  sound.unlock();
+  window.removeEventListener('pointerdown', firstGesture);
+  window.removeEventListener('keydown', firstGesture);
+};
+window.addEventListener('pointerdown', firstGesture);
+window.addEventListener('keydown', firstGesture);
+
 input.onLockChange = (locked) => {
   if (!locked && state === 'playing' && !isTouch) pause();
 };
@@ -428,7 +442,7 @@ function frame(now) {
       input.consume('pause'); // Esc while a menu is open shouldn't queue up
       input.consume('map');
     }
-    sound.update(dt, state === 'playing' ? game : null);
+    sound.update(dt, state === 'title' ? null : game, state === 'paused' || state === 'title');
     shake = Math.max(0, shake - dt * 30);
 
     if (game && (state === 'playing' || state === 'paused' || state === 'ended')) {

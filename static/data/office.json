@@ -1,5 +1,5 @@
 {
-  "_help": "Map rows are strings; every character is one tile. Coordinates elsewhere are [column, row] of a tile, counting from 0 at the top-left. The game checks this file on load and moves anything placed inside a wall to the nearest open tile (with a console warning). window_view is \"houston\" or \"orbit\". zones: one letter per floor tile (c corridor, o office, d doorway, k break room, i console IT room, l lab, p copy room). stations: detector_bench, vehicle_sim, dose_calc, srag_console (where reports are submitted). coworkers: seats for the unnamed coworkers ([x, y] or {\"at\": [x, y], \"title\": ...}).",
+  "_help": "Map rows are strings; every character is one tile. Coordinates elsewhere are [column, row] of a tile, counting from 0 at the top-left. The game checks this file on load and moves anything placed inside a wall to the nearest open tile (with a console warning). window_view is \"houston\" or \"orbit\". zones: one letter per floor tile (c corridor, o office, d doorway, k break room, i console IT room, l lab, p copy room). stations: detector_bench, vehicle_sim, dose_calc, srag_console (where reports are submitted). posters: wall tiles showing the 'for the children' poster. music: file in audio/, the loop points and the genre sections (from tools/process-music.mjs). coworkers: seats for the unnamed coworkers ([x, y] or {\"at\": [x, y], \"title\": ...}).",
   "_legend": {
     ".": "floor",
     "#": "bulkhead / core wall",
@@ -15,6 +15,7 @@
   },
   "name": "Building 45, 5th Floor",
   "window_view": "houston",
+  "music": { "file": "nyancat-medley.m4a", "loop": [0.5, 202.5], "sections": [0.5, 6, 29.75, 49.75, 63, 76.75, 89.75, 97.25, 106.75, 121.25, 134.25, 147.5, 161.5, 174.75, 188.75] },
   "briefing": "Deadline day on the 5th floor of Building 45. A solar particle event is on its way to the crew in orbit, and the Flight Director needs the radiation team's dose assessment before it arrives. Get your five reports done and submit them at the SRAG console in time to protect the astronauts.",
   "map": [
     "####WWW#WWW#WWW#WWW#WWW#WWW####",
@@ -83,6 +84,7 @@
       "patrol": [[1, 9], [4, 9], [4, 19], [15, 19], [15, 16], [10, 16], [10, 12], [4, 12]]
     }
   ],
+  "posters": [[21, 10], [13, 8]],
   "stations": [
     { "type": "detector_bench", "at": [9, 1] },
     { "type": "vehicle_sim", "at": [18, 22] },
@@ -101,7 +103,7 @@
     [1, 4], [1, 5], [1, 6],
     [1, 12], [1, 13], [1, 14],
     [1, 16], [1, 17], [1, 18],
-    [29, 4], [29, 5], [29, 6],
+    [29, 4], [29, 6],
     [29, 8], [29, 9], [29, 10],
     [29, 12], [29, 14],
     [29, 16], [29, 17], [29, 18]
