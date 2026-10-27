@@ -45,7 +45,7 @@ posters are up on the floor (their walls are listed under `posters` in
 
 The background music is a medley of genre versions of the Nyan Cat theme
 (`audio/nyancat-medley.m4a`, cut from `NyanCat.m4a` by
-`node tools/process-music.mjs`). It jumps to a different version when a
+`node tools/process-music.mjs`, which leaves out the snoring-cat intro). It jumps to a different version when a
 manager starts chasing you or a solar flare hits, speeds up near the deadline,
 and slows down while Kevin is telling you about neutrinos. Music has its own on/off setting.
 
