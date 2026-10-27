@@ -18,6 +18,13 @@ const TILE_COLORS = {
 
 const font = (px, weight = 600, family = SANS) => `${weight} ${Math.round(px)}px ${family}`;
 
+// Keyboard hints, reworded for the on-screen buttons on touch screens.
+const TOUCH_WORDS = [
+  [/^E: /, 'Use: '], [/ · N: /, ' · Name: '], [/Press E/g, 'Tap Use'], [/Press C/g, 'Tap Coffee'],
+  [/with Space or a click/g, 'with the Memo button'], [/\(M to close\)/, '(tap Map to close)'],
+];
+const say = (o, text) => (o.touch ? TOUCH_WORDS.reduce((t, [re, to]) => t.replace(re, to), text) : text);
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -140,12 +147,13 @@ export function drawHud(ctx, g, o) {
   }
 
   if (g.prompt && g.status === 'playing') {
+    const prompt = say(o, g.prompt);
     ctx.font = font(17 * u, 700);
-    const tw = ctx.measureText(g.prompt).width;
+    const tw = Math.min(ctx.measureText(prompt).width, w - 60 * u);
     panel(ctx, cx - tw / 2 - 14 * u, cy + 38 * u, tw + 28 * u, 32 * u, u, 0.75);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.fillText(g.prompt, cx, cy + 60 * u);
+    ctx.fillText(prompt, cx, cy + 60 * u, tw);
   }
 
   drawClockAndChecklist(ctx, g, o, m);
@@ -337,8 +345,8 @@ function drawInventory(ctx, g, o, m) {
   const { u, w, h, icons } = o;
   const p = g.player;
   const slots = [
-    { icon: icons.memos, count: p.memos, key: 'Space', label: 'memos' },
-    { icon: icons.coffee, count: p.coffee, key: 'C', label: 'coffee' },
+    { icon: icons.memos, count: p.memos, key: o.touch ? '' : 'Space', label: 'memos' },
+    { icon: icons.coffee, count: p.coffee, key: o.touch ? '' : 'C', label: 'coffee' },
   ];
   const LABELS = { timesheet: 'timesheet', r13: 'R-13', dosimetry: 'dosimetry' };
   for (const k of Object.keys(LABELS)) if (p.items.has(k)) slots.push({ icon: icons[k], label: LABELS[k] });
@@ -376,7 +384,7 @@ function drawToasts(ctx, g, o) {
   for (const t of g.toasts) {
     const italic = t.kind === 'overheard';
     ctx.font = `${italic ? 'italic ' : ''}${font(15 * u, 600)}`;
-    const lines = wrap(ctx, t.text, maxW - 28 * u);
+    const lines = wrap(ctx, say(o, t.text), maxW - 28 * u);
     const bw = Math.min(maxW, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 28 * u);
     const bh = (lines.length * 20 + 14) * u;
     ctx.globalAlpha = Math.min(1, t.ttl / 0.4, (t.max - t.ttl + 0.15) / 0.15);
@@ -525,7 +533,7 @@ function drawCalibration(ctx, g, o) {
   ctx.fillRect(nx - 2 * u, gy - 8 * u, 4 * u, gh + 16 * u);
   ctx.fillStyle = '#e8eef7';
   ctx.font = font(15 * u, 700);
-  ctx.fillText(`Press E when the needle is in the green band   ${'●'.repeat(m.hits)}${'○'.repeat(m.need - m.hits)}`, w / 2, y + 128 * u, bw - 30 * u);
+  ctx.fillText(`${say(o, 'Press E')} when the needle is in the green band   ${'●'.repeat(m.hits)}${'○'.repeat(m.need - m.hits)}`, w / 2, y + 128 * u, bw - 30 * u);
   ctx.font = font(12 * u, 600);
   ctx.fillStyle = '#9fb0c8';
   ctx.fillText(`misses ${m.misses}/3`, w / 2, y + 150 * u);
@@ -537,9 +545,11 @@ function drawChat(ctx, g, o) {
   const { u, w, h } = o;
   const c = g.chat, p = g.player, n = c.npc;
   const bw = Math.min(600 * u, w - 40 * u);
+  // Only Kevin-style talkers have a topic; build each title only when needed.
   const titles = {
-    blackhole: `${n.name.toUpperCase()} IS TALKING ${n.blackHole.topic.toUpperCase()}`, physics: `${n.name.toUpperCase()} HAS A PHYSICS PROBLEM`,
-    dropin: `${n.name.toUpperCase()} DROPPED IN`, debrief: 'ASTRONAUT DEBRIEF',
+    blackhole: () => `${n.name.toUpperCase()} IS TALKING ${(n.blackHole?.topic || 'physics').toUpperCase()}`,
+    physics: () => `${n.name.toUpperCase()} HAS A PHYSICS PROBLEM`,
+    dropin: () => `${n.name.toUpperCase()} DROPPED IN`, debrief: () => 'ASTRONAUT DEBRIEF',
   };
   const accent = c.kind === 'blackhole' ? '#c9a6ff' : c.kind === 'debrief' ? '#7fd6ff' : '#ffc68a';
   ctx.font = font(18 * u, 600);
@@ -555,13 +565,13 @@ function drawChat(ctx, g, o) {
   ctx.textAlign = 'center';
   ctx.fillStyle = accent;
   ctx.font = font(13 * u, 800, MONO);
-  ctx.fillText(titles[c.kind] || n.name.toUpperCase(), w / 2, y + 28 * u, bw - 30 * u);
+  ctx.fillText(titles[c.kind] ? titles[c.kind]() : n.name.toUpperCase(), w / 2, y + 28 * u, bw - 30 * u);
   ctx.fillStyle = '#f2f5fa';
   ctx.font = font(18 * u, 600);
   lines.forEach((l, i) => ctx.fillText(l, w / 2, y + (56 + i * 24) * u));
   ctx.font = font(12 * u, 700);
   ctx.fillStyle = '#9fb0c8';
-  const hint = c.escape ? (c.escort ? 'He is walking you back to his desk. Press E (repeatedly) to excuse yourself.' : 'Press E (repeatedly) to excuse yourself.') : 'Just nod along.';
+  const hint = say(o, c.escape ? (c.escort ? 'He is walking you back to his desk. Press E (repeatedly) to excuse yourself.' : 'Press E (repeatedly) to excuse yourself.') : 'Just nod along.');
   ctx.fillText(hint, w / 2, y + bh - 30 * u, bw - 30 * u);
   bar(ctx, x + 30 * u, y + bh - 18 * u, bw - 60 * u, 6 * u, p.lock / p.lockMax, accent, u);
 }
@@ -737,5 +747,5 @@ function drawBigMap(ctx, g, o) {
   ctx.font = font(13 * u, 600);
   ctx.fillStyle = '#9fb0c8';
   const legend = '● yellow: sign-off needed   ● green: signed off   ● blue: can help   ● purple: Kevin (inside the ring, he starts talking)   ○ empty ring: away from their desk   ■ orange: work station   ■ green: SRAG console   red ring: manager whose stamp you need   cones: what managers can see   (M to close)';
-  wrap(ctx, legend, w - 60 * u).forEach((l, i) => ctx.fillText(l, w / 2, y0 + g.world.h * ts + (30 + i * 18) * u));
+  wrap(ctx, say(o, legend), w - 60 * u).forEach((l, i) => ctx.fillText(l, w / 2, y0 + g.world.h * ts + (30 + i * 18) * u));
 }

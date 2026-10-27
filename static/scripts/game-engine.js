@@ -540,7 +540,7 @@ function render(g, t, withHud) {
       const r = raycaster.project(x, y, z);
       return r && { x: r.x * kx, y: r.y * ky, depth: r.depth };
     };
-    drawHud(ctx, g, { w: cw, h: ch, u, time: t, showMap, icons, fps: showFps ? fps : 0, project });
+    drawHud(ctx, g, { w: cw, h: ch, u, time: t, showMap, icons, fps: showFps ? fps : 0, project, touch: isTouch });
   }
 }
 

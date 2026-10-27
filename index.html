@@ -14,8 +14,14 @@
   <canvas id="screen" aria-label="Game view"></canvas>
 
   <div id="touch-ui" hidden>
-    <div class="stick-zone"><div class="stick-base"><div class="stick-knob"></div></div></div>
-    <div class="look-zone"></div>
+    <div class="stick-zone">
+      <div class="stick-base">
+        <svg class="stick-arrows" viewBox="0 0 120 120" aria-hidden="true"><path d="M60 9l-9 10h18zM60 111l-9-10h18zM9 60l10-9v18zM111 60l-10-9v18z"/></svg>
+        <div class="stick-knob"></div>
+        <span class="stick-hint">Drag to walk<br>past the ring to run</span>
+      </div>
+    </div>
+    <div class="look-zone"><span class="look-hint">Swipe here to look around</span></div>
     <div class="touch-buttons">
       <button type="button" data-action="pause" aria-label="Pause">II</button>
       <button type="button" data-action="map">Map</button>
@@ -119,6 +125,7 @@
             <tr><th>Drink coffee</th><td>C</td></tr>
             <tr><th>Map</th><td>M or Tab</td></tr>
             <tr><th>Pause</th><td>Esc or P</td></tr>
+            <tr><th>Phone / tablet</th><td>Hold it sideways. Left thumb: joystick (drag past the ring to run). Right side: swipe to look. Buttons for Use, Memo, Coffee, Map and Name.</td></tr>
           </table>
           <div id="title-settings-slot"></div>
         </div>
