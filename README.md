@@ -39,20 +39,25 @@ Any other static server works too (`python3 -m http.server`, VS Code Live Server
 
 ### homebodi.ai/game (Cloudflare, deploys from GitHub)
 
-`wrangler.jsonc` describes a Cloudflare Worker that serves the game at
-`homebodi.ai/game/` and nothing else, so whatever else runs on homebodi.ai is
-untouched. `npm run build` copies the files the site needs into `dist/game/`.
+`wrangler.jsonc` describes a Cloudflare Worker with homebodi.ai attached as a
+custom domain: the game is at `homebodi.ai/game/` and the bare domain
+redirects there. `npm run build` copies the files the site needs into
+`dist/game/` and writes that redirect page as `dist/index.html`.
 
 1. Push this folder to a GitHub repo (it can be private).
 2. Cloudflare dashboard → **Workers & Pages** → **Create** → **Import a
    repository** → pick the repo. Name the Worker
    `cosmic-cubicle-combatants` (it has to match `name` in `wrangler.jsonc`).
    Build command: `npm run build`. Deploy command: `npx wrangler deploy`.
-3. homebodi.ai must be proxied by Cloudflare (orange cloud in **DNS**).
-   If nothing is hosted at homebodi.ai yet, add a DNS record: type `AAAA`,
-   name `@`, address `100::`, proxied. A Worker route only runs for
-   hostnames Cloudflare proxies.
+3. Deploying attaches homebodi.ai as the Worker's custom domain (Cloudflare
+   creates the DNS record, type "Worker").
 4. Open <https://homebodi.ai/game/>. Every push to `main` redeploys.
+
+If you later want a different site at the root of homebodi.ai, give the game
+just the `/game` path instead: replace the custom domain in `wrangler.jsonc`
+with the routes `homebodi.ai/game` and `homebodi.ai/game/*` (each with
+`"zone_name": "homebodi.ai"`), and delete the redirect page from
+`tools/build.mjs`.
 
 To deploy from your own machine instead: `npx wrangler login`, then
 `npm run deploy`. For `www.homebodi.ai/game` too, add matching routes to
