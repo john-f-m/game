@@ -496,6 +496,9 @@ try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); } catch { haveF
     { name: 'clifton', x: 9.5, y: 9.5, a: 0 },
     { name: 'corridor-doors', x: 5.5, y: 19.5, a: 0 },
     { name: 'serkan', x: 13.5, y: 2.5, a: -Math.PI / 2 },
+    { name: 'posters-core', x: 15.5, y: 5.5, a: Math.PI / 2 }, // the Sun and a photo on the core's north wall
+    { name: 'posters-east', x: 21.5, y: 12.5, a: Math.PI }, // Earth on the core's east wall
+    { name: 'posters-south', x: 15.5, y: 18.5, a: -Math.PI / 2 }, // rocket and Moon
   ];
   const outDir = process.argv.includes('--frames') ? process.argv[process.argv.indexOf('--frames') + 1] : null;
   if (outDir) mkdirSync(outDir, { recursive: true });

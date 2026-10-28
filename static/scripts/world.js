@@ -34,6 +34,10 @@ export const LEGEND = {
 // doorways and rooms easy to read.
 export const ZONES = { c: 0, o: 1, d: 2, k: 3, i: 4, l: 5, p: 6 };
 
+// Wall art (office.json "posters": [x, y] or { "at": [x, y], "kind": ... }).
+// The pictures are painted in textures.js; "children" is the photo.
+export const POSTER_KINDS = ['children', 'sun', 'earth', 'moon', 'rocket', 'patch', 'mars', 'weather', 'shuttle'];
+
 const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 export class World {
@@ -70,11 +74,16 @@ export class World {
     this.roomInfo = [];
   }
 
-  // Wall tiles that carry the "for the children" poster (office.json "posters").
+  // Wall tiles that carry a poster (office.json "posters"); the value is the
+  // index into POSTER_KINDS plus one.
   setPosters(list, warn = () => {}) {
-    for (const at of Array.isArray(list) ? list : []) {
+    for (const entry of Array.isArray(list) ? list : []) {
+      const at = Array.isArray(entry) ? entry : entry && entry.at;
+      const kind = Array.isArray(entry) ? 'children' : (entry && entry.kind) || 'children';
       const [x, y] = Array.isArray(at) ? at : [];
-      if (Number.isInteger(x) && Number.isInteger(y) && this.isWall(x, y) && x >= 0 && y >= 0 && x < this.w && y < this.h) this.posters[y * this.w + x] = 1;
+      let k = POSTER_KINDS.indexOf(kind);
+      if (k < 0) { warn(`office.json posters: unknown kind "${kind}" at ${JSON.stringify(at)}; using "children"`); k = 0; }
+      if (Number.isInteger(x) && Number.isInteger(y) && this.isWall(x, y) && x >= 0 && y >= 0 && x < this.w && y < this.h) this.posters[y * this.w + x] = k + 1;
       else warn(`office.json posters: ${JSON.stringify(at)} is not a wall tile`);
     }
   }

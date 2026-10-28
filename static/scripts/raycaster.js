@@ -127,7 +127,8 @@ export class Raycaster {
 
   wallTexture(tile, mx, my, time, world) {
     if (tile === T.SERVER && ((time * 2) | 0) & 1) return this.tx.serverAlt[0];
-    if (world.posters[my * world.w + mx] && this.tx.posters[tile]) return this.tx.posters[tile];
+    const art = world.posters[my * world.w + mx];
+    if (art && this.tx.posters[art] && this.tx.posters[art][tile]) return this.tx.posters[art][tile];
     if (tile === T.OFFICE && world.doorAdj[my * world.w + mx]) return this.tx.doorFrame;
     const list = this.tx.walls[tile] || this.tx.walls[T.BULKHEAD];
     return list[tileHash(mx, my) % list.length];

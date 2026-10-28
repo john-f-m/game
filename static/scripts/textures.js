@@ -8,6 +8,7 @@
 //   254 = emissive (lights, LEDs: not darkened by distance)
 
 import { mulberry32 } from './game.js';
+import { POSTER_KINDS } from './world.js';
 
 export const TEX = 64;
 export const GLASS = 0;
@@ -281,16 +282,139 @@ function doorFrame(rng) {
 }
 
 // A wall texture with the "for the children" poster on it. poster is a
-// 56x44 picture (static/sprites/posters/), framed with a caption below.
-function posterWall(base, poster) {
+// A 56x44 picture on a wall, framed, with a two-line caption below.
+function posterWall(base, picture, caption) {
   const t = new Tex(TEX, TEX);
   t.data.set(base.data);
   t.rect(2, 1, 60, 61, hex('#1f1b18')).rect(3, 2, 58, 59, hex('#f4f1e8'));
   for (let y = 0; y < 44; y++) for (let x = 0; x < 56; x++) {
-    const c = poster.data[y * poster.w + x];
+    const c = picture.data[y * picture.w + x];
     if (ca(c) > 0) t.px(4 + x, 3 + y, c | 0xff000000);
   }
-  t.text('FOR THE', 18, 49, hex('#1f1b18')).text('CHILDREN', 16, 55, hex('#1f1b18'));
+  const ink = hex('#1f1b18');
+  caption.forEach((line, i) => t.text(line, 32 - line.length * 2, 49 + i * 6, ink));
+  return t;
+}
+
+// The wall art itself: the Sun, Earth from orbit, the Moon, a launch, a
+// mission patch, Mars, a space weather plot, the orbiter. Each is painted
+// at 56x44. "children" is the photo (extras.poster), with a stand-in if
+// it didn't load.
+const stars = (t, rng, n) => { for (let i = 0; i < n; i++) t.px(rng() * 56, rng() * 44, rng() < 0.3 ? hex('#ffffff') : hex('#9fb0d8')); };
+const POSTER_ART = {
+  children: {
+    caption: ['FOR THE', 'CHILDREN'],
+    paint: (t) => { t.fill(hex('#e8dcc0')).rect(6, 6, 44, 32, hex('#c9b48a')).text('PHOTO', 18, 19, hex('#5d5248')); },
+  },
+  sun: {
+    caption: ['OUR STAR', 'DO NOT STARE'],
+    paint: (t, rng) => {
+      t.fill(hex('#07060f'));
+      stars(t, rng, 30);
+      for (let i = 0; i < 24; i++) { // corona rays
+        const a = (i / 24) * Math.PI * 2, len = 17 + (i % 3) * 2.5;
+        for (let r = 14; r < len; r += 0.5) t.px(28 + Math.cos(a) * r, 22 + Math.sin(a) * r, i % 2 ? hex('#ff7a1a') : hex('#ffb347'));
+      }
+      t.circle(28, 22, 13.5, hex('#ff9a1f')).circle(27, 21, 10, hex('#ffc93c')).circle(26, 20, 5, hex('#fff1a8'));
+      for (let i = 0; i < 40; i++) t.px(28 + (rng() - 0.5) * 24, 22 + (rng() - 0.5) * 24, hex('#ffb347')); // granules
+      t.rect(31, 25, 2, 2, hex('#7a3a00')).rect(21, 26, 2, 1, hex('#7a3a00')).px(34, 18, hex('#7a3a00')); // sunspots
+      for (let a = -1.2; a < -0.2; a += 0.05) t.px(28 + Math.cos(a) * 17, 22 + Math.sin(a) * 17, hex('#ff3b1f')); // a prominence
+    },
+  },
+  earth: {
+    caption: ['ISS', '400 KM UP'],
+    paint: (t, rng) => {
+      t.fill(hex('#05070f'));
+      stars(t, rng, 30);
+      t.circle(26, 23, 15, hex('#1d5fcf')).circle(23, 20, 13, hex('#2a73e8'));
+      t.circle(20, 18, 5, hex('#2f9a4a')).circle(31, 27, 4.5, hex('#3a9a4a')).circle(23, 30, 3, hex('#2f9a4a')).rect(27, 13, 7, 3, hex('#2f9a4a'));
+      for (let i = 0; i < 14; i++) t.rect(14 + rng() * 22, 12 + rng() * 22, 2 + rng() * 4, 1, hex('#ffffff')); // clouds
+      t.circle(26, 23, 15.6, 0).circle(26, 23, 15, hex('#1d5fcf')); // keep the disc crisp
+      t.circle(20, 18, 5, hex('#2f9a4a')).circle(31, 27, 4.5, hex('#3a9a4a')).circle(23, 30, 3, hex('#2f9a4a'));
+      for (let i = 0; i < 14; i++) t.rect(14 + rng() * 22, 12 + rng() * 22, 2 + rng() * 4, 1, hex('#ffffff'));
+      t.rect(42, 10, 11, 1, hex('#f2f2f2')).rect(47, 7, 1, 7, hex('#f2f2f2')).rect(43, 8, 3, 2, hex('#d9a441')).rect(49, 11, 3, 2, hex('#d9a441')); // the station
+    },
+  },
+  moon: {
+    caption: ['ONE SMALL', 'STEP'],
+    paint: (t, rng) => {
+      t.fill(hex('#000000'));
+      stars(t, rng, 36);
+      t.circle(28, 23, 15, hex('#bdbdbd')).circle(26, 21, 13, hex('#cfcfcf'));
+      t.circle(22, 18, 3, hex('#8e8e8e')).circle(32, 27, 4, hex('#8e8e8e')).circle(27, 31, 2, hex('#8e8e8e')).circle(35, 16, 2, hex('#9a9a9a')).circle(19, 27, 1.5, hex('#8e8e8e'));
+      t.circle(21, 17, 1, hex('#e0e0e0')).circle(31, 26, 1.5, hex('#e0e0e0'));
+    },
+  },
+  rocket: {
+    caption: ['GO FOR', 'LAUNCH'],
+    paint: (t, rng) => {
+      t.fill(hex('#0b1230'));
+      stars(t, rng, 24);
+      t.rect(0, 39, 56, 5, hex('#2b2b2b'));
+      t.rect(18, 8, 3, 31, hex('#6f6f6f'));
+      for (const y of [12, 18, 24, 30]) t.rect(21, y, 7, 1, hex('#6f6f6f'));
+      t.rect(29, 9, 6, 22, hex('#f2f2f2')).tri(29, 9, 35, 9, 32, 3, hex('#f2f2f2')).rect(31, 14, 2, 1, hex('#1b1b1b')).rect(29, 24, 6, 1, hex('#1b1b1b'));
+      t.tri(29, 31, 26, 36, 29, 36, hex('#d23c3c')).tri(35, 31, 38, 36, 35, 36, hex('#d23c3c'));
+      t.tri(27, 31, 37, 31, 32, 44, hex('#ffb13b')).tri(29, 31, 35, 31, 32, 41, hex('#fff3b0'));
+      t.circle(24, 40, 4, hex('#9a9a9a')).circle(40, 40, 4, hex('#9a9a9a')).circle(20, 42, 3, hex('#c4c4c4')).circle(44, 42, 3, hex('#c4c4c4'));
+    },
+  },
+  patch: {
+    caption: ['SRAG', 'HOUSTON TX'],
+    paint: (t) => {
+      t.fill(hex('#14213d')).circle(28, 22, 20, hex('#f2d22e')).circle(28, 22, 18, hex('#0f1a33'));
+      for (let a = 0; a < Math.PI * 2; a += 0.04) t.px(28 + Math.cos(a) * 14, 22 + Math.sin(a) * 5.5, hex('#d9e2ff'));
+      t.circle(28, 23, 5.5, hex('#2c5ec9')).circle(27, 22, 4, hex('#3f7fe8')).circle(26, 21, 1.5, hex('#2f9a4a'));
+      t.rect(37, 10, 1, 5, hex('#ffffff')).rect(35, 12, 5, 1, hex('#ffffff'));
+      t.text('SRAG', 20, 31, hex('#f2d22e'));
+    },
+  },
+  mars: {
+    caption: ['MARS', 'SOMEDAY'],
+    paint: (t, rng) => {
+      t.fill(hex('#050308'));
+      stars(t, rng, 30);
+      t.circle(28, 23, 15, hex('#c1440e')).circle(26, 21, 13, hex('#d2552a'));
+      t.circle(23, 20, 4, hex('#8f2f08')).circle(33, 26, 5, hex('#9a3a10')).circle(30, 16, 2, hex('#8f2f08'));
+      t.circle(28, 9.5, 3.5, hex('#f4f1e8'));
+    },
+  },
+  weather: {
+    caption: ['SPACE', 'WEATHER'],
+    paint: (t) => {
+      t.fill(hex('#0d1626'));
+      for (let x = 4; x < 56; x += 8) t.rect(x, 4, 1, 36, hex('#1f2c45'));
+      for (let y = 8; y < 40; y += 8) t.rect(4, y, 48, 1, hex('#1f2c45'));
+      t.rect(4, 4, 1, 36, hex('#9fb0c8')).rect(4, 39, 48, 1, hex('#9fb0c8'));
+      for (let x = 5; x < 52; x++) {
+        const y = x < 27 ? 33 - ((x * 7) % 3) : 33 - 25 * Math.exp(-(x - 27) / 7);
+        t.px(x, y, hex('#ff6b6b')).px(x, y + 1, hex('#ff6b6b'));
+      }
+      t.rect(26, 6, 1, 33, hex('#ffd166'));
+      t.text('FLUX', 6, 6, hex('#ff6b6b')).text('SPE', 29, 6, hex('#ffd166'));
+    },
+  },
+  shuttle: {
+    caption: ['SPACE', 'SHUTTLE'],
+    paint: (t, rng) => {
+      t.fill(hex('#03050c'));
+      stars(t, rng, 24);
+      t.circle(28, 72, 46, hex('#2a73e8')).circle(28, 73, 46, hex('#1d5fcf')).circle(28, 76, 46, hex('#2f9a4a'));
+      for (let i = 0; i < 10; i++) t.rect(4 + rng() * 48, 31 + rng() * 10, 3 + rng() * 5, 1, hex('#ffffff'));
+      t.tri(16, 9, 16, 19, 25, 19, hex('#f2f2f2')); // tail
+      t.rect(14, 19, 30, 8, hex('#f2f2f2')).tri(44, 19, 44, 27, 53, 23, hex('#f2f2f2')); // body, nose
+      t.tri(20, 27, 46, 27, 42, 34, hex('#dcdcdc')); // wing
+      t.rect(14, 26, 30, 1, hex('#1b1b1b')).tri(20, 27, 46, 27, 42, 30, hex('#1b1b1b')).rect(44, 23, 7, 1, hex('#1b1b1b'));
+      t.rect(46, 20, 3, 2, hex('#1b1b1b')); // cockpit
+      t.rect(14, 20, 3, 6, hex('#ffb13b')).rect(10, 21, 4, 4, hex('#9fd3ff')); // engines
+    },
+  },
+};
+
+function posterPicture(kind, rng, photo) {
+  if (kind === 'children' && photo) return photo;
+  const t = new Tex(56, 44);
+  (POSTER_ART[kind] || POSTER_ART.children).paint(t, rng);
   return t;
 }
 
@@ -770,7 +894,7 @@ function hand(kind) {
 }
 
 // Builds every texture and procedural sprite the renderer needs.
-// extras.poster: optional 56x44 picture for the "for the children" posters.
+// extras.poster: optional 56x44 photo for the "children" posters.
 export function buildTextures(npcLooks = [], view = 'houston', extras = {}) {
   const rng = mulberry32(1337);
   const walls = {
@@ -785,10 +909,12 @@ export function buildTextures(npcLooks = [], view = 'houston', extras = {}) {
     9: [officeWall(rng, 0), officeWall(rng, 1), officeWall(rng, 0), officeWall(rng, 2), officeWall(rng, 1), officeWall(rng, 3), officeWall(rng, 0), officeWall(rng, 4)],
     10: [elevator(rng)],
   };
-  // The poster, ready for the few walls office.json puts it on.
-  const posters = extras.poster
-    ? Object.fromEntries([1, 3, 9].map((tile) => [tile, posterWall(walls[tile][0], extras.poster)]))
-    : {};
+  // Wall art, by POSTER_KINDS index + 1, on the wall types it can hang on.
+  const posters = {};
+  POSTER_KINDS.forEach((kind, i) => {
+    const pic = posterPicture(kind, mulberry32(77 + i), extras.poster);
+    posters[i + 1] = Object.fromEntries([1, 3, 9].map((tile) => [tile, posterWall(walls[tile][0], pic, POSTER_ART[kind].caption)]));
+  });
   const serverAlt = [server(rng, 1)];
   const pano = view === 'orbit' ? panorama(rng) : houstonPanorama(rng);
   const floors = ['c', 'o', 'd', 'k', 'i', 'l', 'p'].map((z) => [zoneFloor(rng, z, 0), zoneFloor(rng, z, 1)]);

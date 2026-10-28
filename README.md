@@ -46,8 +46,10 @@ get up for coffee, the copier, the console room, the Detector Lab or a word
 with someone down the hall, then go back to their desk. Nobody walks off
 while you're talking to them or standing beside them. On the map, an empty
 ring marks a named coworker's desk while they're away. Two "For the children"
-posters are up on the floor (their walls are listed under `posters` in
-`office.json`).
+posters are up on the floor, and the hallways have space art: the Sun, Earth
+with the ISS, the Moon, a launch, the SRAG mission patch, Mars, a space
+weather plot and the orbiter (`posters` in `office.json`; the pictures are
+painted in `textures.js`, so adding a kind is a few lines of pixel art).
 
 The background music is a medley of genre versions of the Nyan Cat theme
 (`audio/nyancat-medley.m4a`, cut from `NyanCat.m4a` by
