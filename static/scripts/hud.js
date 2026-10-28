@@ -2,14 +2,14 @@
 // 3D view: clock, checklist, meters, inventory, minimap, dialog, toasts.
 
 import { T } from './world.js';
-import { formatClock, readyCount, reportReady, pendingStamps, hasItem, ITEMS, PLAYER, CREW, TASKS, needlePos } from './game.js';
+import { formatClock, readyCount, reportReady, pendingStamps, hasItem, ITEMS, PLAYER, CREW, TASKS, needlePos, angleDiff } from './game.js';
 
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 export const BOSS_COLORS = { eddie: '#7fd6ff', clifton: '#ffb85c' };
 const TOAST_COLORS = {
-  info: '#e8eef7', warn: '#ffd166', alarm: '#ff6b6b', good: '#7dffa0', item: '#bfe3ff', overheard: '#cdb8ff', npc: '#ffc68a',
+  info: '#e8eef7', warn: '#ffd166', alarm: '#ff6b6b', good: '#7dffa0', item: '#bfe3ff', overheard: '#cdb8ff', npc: '#ffc68a', tip: '#ffe9a8',
 };
 const TILE_COLORS = {
   [T.FLOOR]: '#1d2736', [T.BULKHEAD]: '#56637a', [T.WINDOW]: '#6fb7ff', [T.CUBICLE]: '#8a93a6', [T.FILING]: '#b5ad9c',
@@ -22,6 +22,8 @@ const font = (px, weight = 600, family = SANS) => `${weight} ${Math.round(px)}px
 const TOUCH_WORDS = [
   [/^E: /, 'Use: '], [/ · N: /, ' · Name: '], [/Press E/g, 'Tap Use'], [/Press C/g, 'Tap Coffee'],
   [/with Space or a click/g, 'with the Memo button'], [/\(M to close\)/, '(tap Map to close)'],
+  [/WASD to walk, mouse to look/, 'Joystick to walk, swipe the right side to look'], [/Press M for/, 'Tap Map for'],
+  [/throw a memo \(Space\)/, 'tap Memo'], [/Coffee \(C\)/g, 'The Coffee button'], [/a coffee \(C\)/g, 'a coffee (Coffee button)'],
 ];
 const say = (o, text) => (o.touch ? TOUCH_WORDS.reduce((t, [re, to]) => t.replace(re, to), text) : text);
 
@@ -84,6 +86,13 @@ export function drawHud(ctx, g, o) {
   const { w, h, u, time } = o;
   const p = g.player;
   const m = 16 * u;
+  // Phones in landscape: a notch on one side, a joystick bottom-left and
+  // buttons bottom-right. Left/right margins allow for the notch; in
+  // compact mode the panels stack down the left and right edges instead.
+  o.mL = m + (o.insL || 0);
+  o.mR = m + (o.insR || 0);
+  o.leftY = m;
+  o.rightY = m;
   ctx.save();
   ctx.textBaseline = 'alphabetic';
   ctx.imageSmoothingEnabled = false;
@@ -157,9 +166,12 @@ export function drawHud(ctx, g, o) {
   }
 
   drawClockAndChecklist(ctx, g, o, m);
+  drawGuide(ctx, g, o, m);
   drawMeters(ctx, g, o, m);
+  const mmW = o.compact ? 140 * u : 190 * u, mmH = o.compact ? 110 * u : 150 * u;
+  drawMinimap(ctx, g, w - o.mR - mmW - (o.reserveTR || 0), m, mmW, mmH, u, time, false);
+  o.rightY = m + mmH + 20 * u;
   drawInventory(ctx, g, o, m);
-  drawMinimap(ctx, g, w - m - 190 * u, m, 190 * u, 150 * u, u, time, false);
   drawToasts(ctx, g, o);
   drawDialog(ctx, g, o, m);
 
@@ -209,6 +221,7 @@ function reportRows(g) {
   const nameOf = (id) => g.bosses.find((b) => b.id === id)?.name || id;
   return g.reports.map((r) => {
     if (reportReady(r)) return { text: `✔ ${r.name}`, color: '#7dffa0' };
+    const now = g.guide && g.guide.report === r;
     const needs = [];
     const t = r.task;
     if (t && !t.done) {
@@ -227,7 +240,7 @@ function reportRows(g) {
     }
     const missing = [...r.stamps].filter((id) => !r.stamped.has(id)).map(nameOf);
     if (missing.length) needs.push(`stamp${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}`);
-    return { text: `• ${r.name}`, color: '#e8eef7', sub: needs.join(' · '), subColor: missing.length ? '#ff9d6b' : '#ffd166' };
+    return { text: `${now ? '►' : '•'} ${r.name}`, color: now ? '#ffffff' : '#b9c4d6', sub: needs.join(' · '), subColor: now ? (missing.length ? '#ff9d6b' : '#ffd166') : '#8d99ad' };
   });
 }
 
@@ -239,13 +252,15 @@ function rowLines(ctx, rows, width, u) {
 
 function drawClockAndChecklist(ctx, g, o, m) {
   const { u, time } = o;
-  const pw = 340 * u;
-  const x = m + 14 * u, tw = pw - 28 * u;
-  const rows = rowLines(ctx, reportRows(g), tw - 12 * u, u);
+  const mL = o.mL;
+  const pw = o.compact ? 230 * u : 340 * u;
+  const x = mL + 14 * u, tw = pw - 28 * u;
+  const rows = o.compact ? [] : rowLines(ctx, reportRows(g), tw - 12 * u, u);
   const done = readyCount(g) === g.reports.length;
   const listH = rows.reduce((hh, r) => hh + 22 + r.subLines.length * 16, 0);
-  const ph = (124 + listH + (done ? 26 : 0)) * u;
-  panel(ctx, m, m, pw, ph, u);
+  const ph = (124 + listH + (done ? 26 : 0) + (o.compact ? 20 : 0)) * u;
+  panel(ctx, mL, m, pw, ph, u);
+  o.leftY = m + ph + 10 * u;
   let y = m + 22 * u;
   ctx.textAlign = 'left';
   ctx.font = font(12 * u, 700);
@@ -256,14 +271,14 @@ function drawClockAndChecklist(ctx, g, o, m) {
     ctx.fillStyle = g.flare.state === 'active' ? '#fff3c4' : '#ff6b6b';
     ctx.globalAlpha = 0.6 + 0.4 * Math.sin(time * 10);
     const inbound = g.perks.flareWatch ? `FLARE IN ${Math.ceil(g.flare.timer)}s` : 'FLARE INBOUND';
-    ctx.fillText(g.flare.state === 'active' ? 'SOLAR FLARE' : inbound, m + pw - 14 * u, y);
+    ctx.fillText(g.flare.state === 'active' ? 'SOLAR FLARE' : inbound, mL + pw - 14 * u, y);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   } else if (g.perks.flareWatch) {
     // Janet's console: countdown to the next flare (warning lasts 12 s).
     ctx.textAlign = 'right';
     ctx.fillStyle = '#9fd3ff';
-    ctx.fillText(`NEXT FLARE ${formatClock(g.flare.timer + 12)}`, m + pw - 14 * u, y);
+    ctx.fillText(`NEXT FLARE ${formatClock(g.flare.timer + 12)}`, mL + pw - 14 * u, y);
     ctx.textAlign = 'left';
   }
   y += 36 * u;
@@ -277,6 +292,19 @@ function drawClockAndChecklist(ctx, g, o, m) {
   ctx.font = font(12 * u, 700);
   ctx.fillStyle = '#9fb0c8';
   ctx.fillText(`REPORTS DUE  ${readyCount(g)}/${g.reports.length} READY`, x, y);
+  if (o.compact) {
+    // Just the one being worked on; the full stack is on the map.
+    const cur = g.guide && g.guide.report;
+    y += 20 * u;
+    ctx.font = font(13 * u, 650);
+    ctx.fillStyle = cur ? '#fff' : '#7dffa0';
+    ctx.fillText(cur ? `► ${cur.name}` : (done ? '✔ All ready: SRAG console' : ''), x, y, tw);
+    y += 16 * u;
+    ctx.font = font(10.5 * u, 600);
+    ctx.fillStyle = '#9fb0c8';
+    ctx.fillText(say(o, 'Press M for the full stack'), x, y, tw);
+    return;
+  }
   y += 4 * u;
   for (const r of rows) {
     y += 20 * u;
@@ -299,11 +327,53 @@ function drawClockAndChecklist(ctx, g, o, m) {
   }
 }
 
+// Bottom centre: the next thing to do, with an arrow that points at it.
+function drawGuide(ctx, g, o, m) {
+  const { u, w, h, time } = o;
+  const gd = g.guide, p = g.player;
+  if (!gd || g.status !== 'playing' || p.lock > 0) return;
+  const text = say(o, gd.text);
+  const sub = `${gd.where} · ${Math.max(1, Math.round(gd.dist * 2))} steps`;
+  ctx.font = font(15 * u, 750);
+  const maxW = o.compact ? Math.max(160 * u, w - (o.reserveBottom || 0) - 110 * u) : Math.min(560 * u, w - 2 * (200 * u));
+  const lines = wrap(ctx, text, maxW);
+  const tw = Math.max(ctx.measureText(sub).width + 10 * u, ...lines.map((l) => ctx.measureText(l).width));
+  const ah = 44 * u, pw = tw + ah + 44 * u, ph = (18 + lines.length * 18 + 18) * u;
+  const x0 = w / 2 - pw / 2, y0 = h - m - 36 * u - ph;
+  panel(ctx, x0, y0, pw, ph, u, 0.72);
+  // Arrow: straight up means straight ahead.
+  const rel = angleDiff(Math.atan2(gd.y - p.y, gd.x - p.x), p.a);
+  const cx = x0 + 14 * u + ah / 2, cy = y0 + ph / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rel);
+  ctx.beginPath();
+  ctx.moveTo(0, -15 * u); ctx.lineTo(11 * u, 10 * u); ctx.lineTo(0, 4 * u); ctx.lineTo(-11 * u, 10 * u); ctx.closePath();
+  ctx.fillStyle = gd.dist < 1.6 ? '#7dffa0' : '#ffd166';
+  ctx.globalAlpha = 0.85 + 0.15 * Math.sin(time * 5);
+  ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+  const tx = x0 + 28 * u + ah;
+  let y = y0 + 22 * u;
+  ctx.font = font(10.5 * u, 800);
+  ctx.fillStyle = '#ffd166';
+  ctx.fillText('NEXT ON THE STACK', tx, y - 7 * u);
+  ctx.font = font(15 * u, 750);
+  ctx.fillStyle = '#fff';
+  for (const l of lines) { y += 15 * u; ctx.fillText(l, tx, y); }
+  ctx.font = font(11.5 * u, 600);
+  ctx.fillStyle = '#9fb0c8';
+  ctx.fillText(sub, tx, y + 16 * u);
+}
+
 function drawMeters(ctx, g, o, m) {
   const { u, h } = o;
   const p = g.player;
-  const pw = 290 * u, ph = 118 * u;
-  const x0 = m, y0 = h - m - ph;
+  const pw = o.compact ? 230 * u : 290 * u, ph = 118 * u;
+  const x0 = o.mL, y0 = o.compact ? o.leftY : h - m - ph;
+  if (o.compact) o.leftY += ph + 10 * u;
   panel(ctx, x0, y0, pw, ph, u);
   const x = x0 + 14 * u, bw = pw - 28 * u;
   ctx.textAlign = 'left';
@@ -352,7 +422,8 @@ function drawInventory(ctx, g, o, m) {
   for (const k of Object.keys(LABELS)) if (p.items.has(k)) slots.push({ icon: icons[k], label: LABELS[k] });
   const sw = 64 * u, gap = 8 * u;
   const pw = slots.length * sw + (slots.length - 1) * gap + 24 * u, ph = 86 * u;
-  const x0 = w - m - pw, y0 = h - m - ph;
+  const x0 = w - o.mR - pw - (o.compact ? o.reserveTR || 0 : 0), y0 = o.compact ? o.rightY : h - m - ph;
+  if (o.compact) o.rightY += ph + 10 * u;
   panel(ctx, x0, y0, pw, ph, u);
   slots.forEach((s, i) => {
     const x = x0 + 12 * u + i * (sw + gap), y = y0 + 10 * u;
@@ -379,7 +450,8 @@ function drawInventory(ctx, g, o, m) {
 function drawToasts(ctx, g, o) {
   const { u, w } = o;
   let y = 18 * u;
-  const maxW = Math.min(640 * u, w - 2 * (330 * u) - 20 * u > 300 * u ? w - 2 * (330 * u) : w - 40 * u);
+  const side = o.compact ? 250 * u : 330 * u;
+  const maxW = Math.min(640 * u, w - 2 * side - 20 * u > 300 * u ? w - 2 * side : w - 40 * u);
   ctx.textAlign = 'center';
   for (const t of g.toasts) {
     const italic = t.kind === 'overheard';
@@ -452,12 +524,12 @@ function drawPerks(ctx, g, o, m) {
   if (g.perks.priority) rows.push('Vehicle run: priority queue (2x)');
   if (!rows.length) return;
   ctx.font = font(12.5 * u, 650);
-  const pw = 290 * u, ph = (12 + rows.length * 19) * u;
-  const y0 = h - m - 118 * u - 8 * u - ph;
-  panel(ctx, m, y0, pw, ph, u, 0.6);
+  const pw = o.compact ? 230 * u : 290 * u, ph = (12 + rows.length * 19) * u;
+  const y0 = o.compact ? o.leftY : h - m - 118 * u - 8 * u - ph;
+  panel(ctx, o.mL, y0, pw, ph, u, 0.6);
   ctx.textAlign = 'left';
   ctx.fillStyle = '#9fd3ff';
-  rows.forEach((r, i) => ctx.fillText(`★ ${r}`, m + 12 * u, y0 + (21 + i * 19) * u, pw - 24 * u));
+  rows.forEach((r, i) => ctx.fillText(`★ ${r}`, o.mL + 12 * u, y0 + (21 + i * 19) * u, pw - 24 * u));
 }
 
 // Amir's clue board.
@@ -646,6 +718,26 @@ export function drawMinimap(ctx, g, x0, y0, maxW, maxH, u, time, full) {
       ctx.strokeRect(sx - ts * 0.7, sy - ts * 0.7, ts * 1.4, ts * 1.4);
     }
   }
+  if (g.guide) {
+    // Where the arrow points, even on unexplored floor.
+    const [gx, gy] = at(g.guide.x, g.guide.y);
+    const r = ts * (0.55 + 0.15 * Math.sin(time * 6));
+    ctx.beginPath();
+    ctx.arc(gx, gy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 2 * u;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(gx, gy, ts * 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffd166';
+    ctx.fill();
+    if (full) {
+      ctx.font = font(11 * u, 800);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText('NEXT', gx, gy - ts * 0.9);
+    }
+  }
   for (const n of g.npcs) {
     if (!n.present) continue;
     // Named people away from their desk: an empty ring where they sit.
@@ -735,17 +827,41 @@ function drawBigMap(ctx, g, o) {
   const { u, w, h, time } = o;
   ctx.fillStyle = 'rgba(4, 7, 15, 0.86)';
   ctx.fillRect(0, 0, w, h);
-  const maxW = w * 0.86, maxH = h * 0.72;
+  const maxW = o.compact ? w * 0.55 : w * 0.86, maxH = o.compact ? h * 0.8 : h * 0.72;
   const ts = Math.min(maxW / g.world.w, maxH / g.world.h);
   const mw = ts * g.world.w;
-  const x0 = (w - mw) / 2, y0 = h * 0.12;
+  const x0 = o.compact ? w - (o.mR || 16 * u) - (o.reserveTR || 0) - mw : (w - mw) / 2, y0 = o.compact ? h * 0.1 : h * 0.12;
   ctx.textAlign = 'center';
   ctx.font = font(20 * u, 800);
   ctx.fillStyle = '#fff';
-  ctx.fillText(g.mapName || 'Floor plan', w / 2, y0 - 22 * u);
+  ctx.fillText(g.mapName || 'Floor plan', o.compact ? x0 + mw / 2 : w / 2, y0 - 22 * u);
   drawMinimap(ctx, g, x0, y0, mw, maxH, u, time, true);
+  if (o.compact) {
+    // The report stack lives here on phones.
+    const lx = (o.mL || 16 * u) + 8 * u, lw = x0 - lx - 24 * u;
+    const rows = rowLines(ctx, reportRows(g), lw - 12 * u, u);
+    let y = y0 + 4 * u;
+    ctx.textAlign = 'left';
+    ctx.font = font(12 * u, 700);
+    ctx.fillStyle = '#9fb0c8';
+    ctx.fillText(`REPORTS DUE  ${readyCount(g)}/${g.reports.length} READY`, lx, y);
+    for (const r of rows) {
+      y += 20 * u;
+      ctx.font = font(14 * u, 650);
+      ctx.fillStyle = r.color;
+      ctx.fillText(r.text, lx, y, lw);
+      ctx.font = font(12 * u, 600);
+      ctx.fillStyle = r.subColor;
+      for (const line of r.subLines) { y += 16 * u; ctx.fillText(line, lx + 12 * u, y, lw - 12 * u); }
+      y += 2 * u;
+    }
+    ctx.font = font(11 * u, 600);
+    ctx.fillStyle = '#9fb0c8';
+    ctx.fillText(say(o, '(M to close)'), lx, Math.max(y + 24 * u, h - 20 * u), lw);
+    return;
+  }
   ctx.font = font(13 * u, 600);
   ctx.fillStyle = '#9fb0c8';
-  const legend = '● yellow: sign-off needed   ● green: signed off   ● blue: can help   ● purple: Kevin (inside the ring, he starts talking)   ○ empty ring: away from their desk   ■ orange: work station   ■ green: SRAG console   red ring: manager whose stamp you need   cones: what managers can see   (M to close)';
+  const legend = '◎ pulsing yellow: your next job   ● yellow: sign-off needed   ● green: signed off   ● blue: can help   ● purple: Kevin (inside the ring, he starts talking)   ○ empty ring: away from their desk   ■ orange: work station   ■ green: SRAG console   red ring: manager whose stamp you need   cones: what managers can see   (M to close)';
   wrap(ctx, say(o, legend), w - 60 * u).forEach((l, i) => ctx.fillText(l, w / 2, y0 + g.world.h * ts + (30 + i * 18) * u));
 }

@@ -18,6 +18,12 @@ Five reports are due, each with real work behind it:
 Management reviews add more approval stamps during the round. Submit
 everything at the SRAG console in the console room.
 
+You never have to work out what to do next: the "Next on the stack" arrow at
+the bottom of the screen always points at one concrete job (the map marks it
+too), and first-round hints arrive one at a time as things happen. Hints can
+be turned off in settings. A test bot that does nothing but follow the arrow
+finishes every round (`node tools/simulate.mjs`, "guided").
+
 Who to look out for: Eddie and Clifton patrol (getting caught costs sanity,
 and time with Clifton; to get a stamp, walk up and press E). Kevin loves
 physics, neutrinos most of all: step into his purple ring and he'll happily

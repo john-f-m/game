@@ -23,6 +23,16 @@ const lowCtx = low.getContext('2d');
 let imageData = null;
 
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+// The notch, in CSS pixels, read from an element padded with env(safe-area-inset-*).
+const safeArea = { left: 0, right: 0 };
+function readSafeArea() {
+  try {
+    const cs = getComputedStyle($('safe-probe'));
+    safeArea.left = parseFloat(cs.paddingLeft) || 0;
+    safeArea.right = parseFloat(cs.paddingRight) || 0;
+  } catch { /* no layout (tests) */ }
+}
+window.addEventListener('resize', readSafeArea);
 const showFps = new URLSearchParams(location.search).has('fps');
 const input = new Input(ui.canvas, ui.touch);
 const sound = new Sound();
@@ -36,7 +46,7 @@ let showMap = false, shake = 0, lastFrame = performance.now(), acc = 0, fps = 60
 // Browser storage can be unavailable (private mode, blocked cookies), so
 // every access is guarded and the game works without it.
 
-const DEFAULT_SETTINGS = { sound: true, music: true, sensitivity: 1, classicTurn: false, pixels: 300, difficulty: 'analyst' };
+const DEFAULT_SETTINGS = { sound: true, music: true, tips: true, sensitivity: 1, classicTurn: false, pixels: 300, difficulty: 'analyst' };
 
 function readStore(key, fallback) {
   try {
@@ -173,6 +183,7 @@ const listNames = (names) => (names.length < 2 ? names.join('') : `${names.slice
 function setupTitle() {
   const { office, encounters } = data;
   $('floor-name').textContent = office.name || '';
+  if (isTouch) $('keyline').textContent = 'Hold your phone sideways · left thumb: joystick (drag past the ring to run) · right side: swipe to look · buttons: Use, Memo, Coffee, Map · hints are on, turn them off in settings';
   $('briefing').textContent = office.briefing || '';
   const signers = new Set((encounters.reports || []).map((r) => r.signoff).filter(Boolean));
   const people = encounters.npc_encounters || [];
@@ -235,6 +246,7 @@ function applySettings() {
   sound.setMuted(!settings.sound);
   sound.setMusicEnabled(settings.music);
   $('opt-music').checked = settings.music;
+  $('opt-tips').checked = settings.tips !== false;
   input.sensitivity = settings.sensitivity;
   input.classicTurn = settings.classicTurn;
   imageData = null; // rebuild the frame buffer at the new pixel size
@@ -246,17 +258,32 @@ function applySettings() {
 
 $('opt-sound').addEventListener('change', (e) => { settings.sound = e.target.checked; applySettings(); writeStore('ccc.settings', settings); });
 $('opt-music').addEventListener('change', (e) => { settings.music = e.target.checked; applySettings(); writeStore('ccc.settings', settings); });
+$('opt-tips').addEventListener('change', (e) => { settings.tips = e.target.checked; if (game) game.tips.on = settings.tips; writeStore('ccc.settings', settings); });
 $('opt-sens').addEventListener('input', (e) => { settings.sensitivity = Number(e.target.value) || 1; applySettings(); writeStore('ccc.settings', settings); });
 $('opt-classic').addEventListener('change', (e) => { settings.classicTurn = e.target.checked; applySettings(); writeStore('ccc.settings', settings); });
 $('opt-pixels').addEventListener('change', (e) => { settings.pixels = Number(e.target.value) || 300; applySettings(); writeStore('ccc.settings', settings); });
 
 // ----------------------------------------------------------------- flow --
 
+// Phones: go full screen and sideways where the browser allows it (Android
+// does; iOS ignores both, where "Add to Home Screen" gives full screen).
+function goFullscreen() {
+  if (!isTouch) return;
+  try {
+    const r = document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
+    if (r && r.catch) r.catch(() => {});
+    const l = screen.orientation?.lock?.('landscape');
+    if (l && l.catch) l.catch(() => {});
+  } catch { /* not allowed here */ }
+}
+
 function startGame(difficulty) {
   sound.unlock();
+  goFullscreen();
+  readSafeArea();
   game = createGame({
     office: data.office, encounters: data.encounters, difficulty,
-    seed: (Math.random() * 2 ** 31) | 0, warn: (m) => console.warn(m), roster,
+    seed: (Math.random() * 2 ** 31) | 0, warn: (m) => console.warn(m), roster, tips: settings.tips !== false,
   });
   game.mapName = data.office.name;
   showMap = false;
@@ -276,7 +303,7 @@ function pause() {
   input.enabled = false;
   input.releaseLock();
   ui.touch.hidden = true;
-  $('pause-status').textContent = `${formatClock(game.timeLeft)} until the CME · ${readyCount(game)}/${game.reports.length} reports ready`;
+  $('pause-status').textContent = `${formatClock(game.timeLeft)} until the Flight Director's deadline · ${readyCount(game)}/${game.reports.length} reports ready${game.guide ? ` · next: ${game.guide.text.toLowerCase()}` : ''}`;
   showScreen(ui.pause);
 }
 
@@ -525,7 +552,8 @@ function render(g, t, withHud) {
   raycaster.render(g, t);
   lowCtx.putImageData(imageData, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  const u = Math.max(Math.min(cw / 1280, ch / 760), dpr * 0.7);
+  const compact = ch / dpr < 560; // a phone held sideways
+  const u = Math.max(Math.min(cw / 1280, ch / 760), dpr * (compact ? 0.8 : 0.7));
   let sx = 0, sy = 0;
   if (shake > 0.2) {
     sx = (Math.random() - 0.5) * shake * u;
@@ -540,7 +568,12 @@ function render(g, t, withHud) {
       const r = raycaster.project(x, y, z);
       return r && { x: r.x * kx, y: r.y * ky, depth: r.depth };
     };
-    drawHud(ctx, g, { w: cw, h: ch, u, time: t, showMap, icons, fps: showFps ? fps : 0, project, touch: isTouch });
+    drawHud(ctx, g, {
+      w: cw, h: ch, u, dpr, time: t, showMap, icons, fps: showFps ? fps : 0, project, touch: isTouch, compact,
+      insL: safeArea.left * dpr, insR: safeArea.right * dpr,
+      reserveTR: isTouch && compact ? 104 * dpr : 0, // pause + name buttons, top right
+      reserveBottom: isTouch && compact ? 340 * dpr : 0, // joystick left, buttons right
+    });
   }
 }
 

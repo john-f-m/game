@@ -7,11 +7,16 @@
   <meta name="description" content="An office stealth game on deadline day: finish the dose reports, dodge management and chatty coworkers, and protect the astronauts before the solar storm hits.">
 
   <meta name="theme-color" content="#070b16">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cubicle Combatants">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23070b16'/%3E%3Ccircle cx='16' cy='16' r='11' fill='%23f2d22e'/%3E%3Cpath d='M16 16 L10 6 A11.5 11.5 0 0 1 22 6 Z M16 16 L27.5 16 A11.5 11.5 0 0 1 22 26 Z M16 16 L10 26 A11.5 11.5 0 0 1 4.5 16 Z' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23111'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="static/css/style.css">
 </head>
 <body>
   <canvas id="screen" aria-label="Game view"></canvas>
+  <div id="safe-probe" aria-hidden="true"></div>
 
   <div id="touch-ui" hidden>
     <div class="stick-zone">
@@ -22,13 +27,15 @@
       </div>
     </div>
     <div class="look-zone"><span class="look-hint">Swipe here to look around</span></div>
-    <div class="touch-buttons">
+    <div class="touch-top">
       <button type="button" data-action="pause" aria-label="Pause">II</button>
+      <button type="button" data-action="name" aria-label="Name this coworker">Name</button>
+    </div>
+    <div class="touch-buttons">
       <button type="button" data-action="map">Map</button>
-      <button type="button" data-action="name">Name</button>
       <button type="button" data-action="drink">Coffee</button>
-      <button type="button" data-action="interact" class="big">Use</button>
       <button type="button" data-action="throw" class="big">Memo</button>
+      <button type="button" data-action="interact" class="big use">Use</button>
     </div>
     <div class="quiz-buttons">
       <button type="button" data-action="answer1">1</button>
@@ -65,14 +72,15 @@
 
       <div class="cols">
         <section class="card">
-          <h2>Deadline day</h2>
+          <h2>How it works</h2>
           <p id="briefing"></p>
           <ol class="steps">
-            <li>Finish your reports: <span id="report-list"></span>. That means real work: calibrating a detector, running the vehicle dose model, calculating the astronauts' medical doses and debriefing a visiting astronaut.</li>
-            <li><span id="coworkers"></span> sign off on them, and some want a favor first. Management wants <b>approval stamps</b> and keeps asking for more: walk up to Eddie or Clifton on purpose and press E.</li>
-            <li>Submit everything at the <b>SRAG console</b> in the console room before the deadline. The crew's dose climbs until you do, faster during <b>solar flares</b>.</li>
-            <li>Around the floor you'll also find <span id="helpers"></span>. They're optional, and each can help you out.</li>
+            <li><b>Follow the arrow.</b> It always points at your next job, and the map (<b>M</b>) marks it. The stack on the left lists everything due: <span id="report-list"></span>.</li>
+            <li><b>Do the work.</b> Calibrate a detector, run the vehicle dose model, calculate medical doses, debrief an astronaut. Then get <span id="coworkers"></span> to sign off; some want a favor first.</li>
+            <li><b>Collect the stamps.</b> Management keeps asking for approvals: walk right up to Eddie or Clifton and press <b>E</b>. Any other time, stay out of their sight.</li>
+            <li><b>Submit</b> at the SRAG console before the clock runs out. The crew's dose keeps climbing until you do.</li>
           </ol>
+          <p class="muted small">Around the floor: <span id="helpers"></span>. All optional, each one makes the day easier.</p>
         </section>
         <section class="card">
           <h2>Who to look out for</h2>
@@ -94,6 +102,7 @@
 
       <div id="difficulty" class="diffs" role="radiogroup" aria-label="Difficulty"></div>
       <button type="button" id="start" class="primary start">Clock in</button>
+      <p class="muted small keyline" id="keyline">W A S D move · mouse look · E talk / use · Space memo · C coffee · M map · Esc pause · hints are on, turn them off in settings</p>
 
       <details class="controls">
         <summary>Office roster: name your coworkers (<span id="roster-count"></span>)</summary>
@@ -178,6 +187,7 @@
   <form id="settings" class="settings" onsubmit="return false">
     <label class="check"><input type="checkbox" id="opt-sound"> Sound</label>
     <label class="check"><input type="checkbox" id="opt-music"> Music</label>
+    <label class="check"><input type="checkbox" id="opt-tips"> Hints while playing</label>
     <label class="check"><input type="checkbox" id="opt-classic"> A / D turn instead of strafe</label>
     <label>Mouse sensitivity <input type="range" id="opt-sens" min="0.3" max="3" step="0.1"></label>
     <label>Pixel size

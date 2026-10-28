@@ -155,6 +155,16 @@ export function ambientLook(i) {
 }
 
 export const seatKey = (x, y) => `${x},${y}`;
+const ROOM_NAMES = { [ZONES.l]: 'Detector Lab', [ZONES.i]: 'Console room', [ZONES.p]: 'Copy room', [ZONES.k]: 'Break room' };
+
+// Where a spot is, in words, for directions: "north office 3", "the console
+// room", "the hallway".
+export function placeName(g, x, y) {
+  const w = g.world, room = w.rooms[Math.floor(y) * w.w + Math.floor(x)];
+  if (room < 0) return 'the hallway';
+  const info = w.roomInfo[room];
+  return ROOM_NAMES[info.zone] ? `the ${ROOM_NAMES[info.zone].toLowerCase()}` : `${info.side.toLowerCase()} office ${info.num}`;
+}
 
 // Where a seat is, in words: "North office 3 (with Ramona)", "Console room".
 export function describeSeat(g, n) {
@@ -162,7 +172,6 @@ export function describeSeat(g, n) {
   const room = roomOf(at);
   if (room < 0) return 'Open plan';
   const info = w.roomInfo[room];
-  const ROOM_NAMES = { [ZONES.l]: 'Detector Lab', [ZONES.i]: 'Console room', [ZONES.p]: 'Copy room', [ZONES.k]: 'Break room' };
   const label = ROOM_NAMES[info.zone] || `${info.side} office ${info.num}`;
   const named = g.npcs.filter((m) => !m.ambient && m.present && m.home && roomOf(m.home) === room).map((m) => m.name);
   return named.length ? `${label} (with ${joinNames(named)})` : label;
@@ -180,7 +189,7 @@ export function setSeat(g, n, { name = '', title = '', vacant = false }) {
   if (vacant && g.dialog && g.dialog.npc === n) g.dialog = null;
 }
 
-export function createGame({ office, encounters, difficulty = 'analyst', seed = Date.now(), warn = () => {}, roster = {} }) {
+export function createGame({ office, encounters, difficulty = 'analyst', seed = Date.now(), warn = () => {}, roster = {}, tips = true }) {
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.analyst;
   const rng = mulberry32(seed);
   const world = new World(office.map, warn);
@@ -348,12 +357,13 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
       stamps: 0, reviews: 0, perks: 0, quizRight: 0, quizWrong: 0, tasks: 0, trapped: 0,
     },
     noMemoNagged: 0, mapName: office.name || '',
+    guide: null, tips: { on: !!tips, seen: new Set(), busyUntil: 0 },
     seats, spots, errandLines: amb.errands || DEFAULT_AMBIENT.errands,
     errandCap: Math.max(2, Math.round(npcs.filter((n) => n.home && n.present).length * 0.15)),
   };
   markExplored(g, 2.5);
-  toast(g, `DEADLINE: the Flight Director needs your dose assessment in ${formatClock(g.timeLeft)}.`, 'warn', 7);
-  toast(g, `Finish your ${reports.length} reports and submit them at the SRAG console (south side, console room) to protect the crew.`, 'info', 9);
+  updateGuide(g);
+  if (!g.tips.on) toast(g, `DEADLINE: the Flight Director needs your dose assessment in ${formatClock(g.timeLeft)}. ${reports.length} reports, then the SRAG console.`, 'warn', 8);
   return g;
 }
 
@@ -512,6 +522,8 @@ export function updateGame(g, input, dt) {
   updateCrew(g, dt);
   updateReviews(g, dt);
   updateAmbient(g, dt);
+  updateGuide(g);
+  updateTips(g);
   markExplored(g, 1.6);
 
   if (g.status === 'playing') {
@@ -1688,6 +1700,105 @@ function updateAmbient(g, dt) {
     if (!g.dialog && !g.chat) toast(g, g.puns[Math.floor(g.rng() * g.puns.length)], 'overheard', 6);
     g.punTimer = 22 + g.rng() * 20;
   }
+}
+
+// ------------------------------------------------------------- the guide --
+// One concrete next step for the player: what to do, where it is and the
+// spot to walk to. Shown as an arrow and a map marker. The pick sticks until
+// it's done, so it doesn't flip between two jobs as you walk.
+
+const STEP_TEXT = {
+  detector: 'Calibrate the detector on the test bench', vehicle: 'Start the vehicle dose run at the console',
+  medical: 'Calculate the medical doses at the workstation',
+};
+const FETCH_TEXT = {
+  coffee: (n) => `Grab a coffee for ${n} (no coffee, no signature)`, timesheet: (n) => `Rescue ${n}'s timesheet from the copier`,
+  r13: (n) => `Swipe a blank R-13 for ${n} from Eddie's filing cabinets`, dosimetry: (n) => `Pick up the dosimetry readings for ${n}`,
+};
+
+export function guideSteps(g) {
+  const p = g.player, steps = [];
+  const station = (type) => g.stations.find((s) => s.type === type);
+  const add = (key, text, target, act, report, extra = {}) => {
+    if (!target) return;
+    steps.push({ key, text, x: target.x, y: target.y, act, report, bias: 0, ...extra });
+  };
+  for (const r of g.reports) {
+    if (reportReady(r)) continue;
+    const t = r.task;
+    if (t && !t.done) {
+      if (t.type === 'astronaut') {
+        add(`${r.id}:astro`, 'Debrief the visiting astronaut (he walks the halls)', g.npcs.find((n) => n.debrief && n.present), 'talk', r, { moving: true, bias: 6 });
+      } else if (t.type === 'medical' && !hasItem(p, 'dosimetry')) {
+        const giver = g.npcs.find((n) => n.gives === 'dosimetry' && !n.gave && n.present);
+        add(`${r.id}:dosimetry`, `Get the crew's dosimetry readings from ${giver?.name}`, giver, 'talk', r, { npc: giver });
+      } else if (t.type === 'vehicle' && t.running) {
+        add(`${r.id}:wait`, g.perks.remote ? `Vehicle run at ${Math.floor(t.progress * 100)}%: it runs while you do other things` : `Stay by the vehicle console until the run finishes (${Math.floor(t.progress * 100)}%)`,
+          station('vehicle_sim'), 'wait', r, { bias: g.perks.remote ? 60 : -100 });
+      } else {
+        add(`${r.id}:task`, STEP_TEXT[t.type] || TASKS[t.type].label, station(TASKS[t.type].station), 'use', r);
+      }
+      continue;
+    }
+    const n = r.signoff;
+    if (n && !n.signed) {
+      if (n.wants && !hasItem(p, n.wants.item)) {
+        const items = g.items.filter((i) => i.type === n.wants.item && !i.taken).sort((a, b) => dist(a, p) - dist(b, p));
+        add(`${r.id}:item:${g.items.indexOf(items[0])}`, (FETCH_TEXT[n.wants.item] || ((who) => `Find ${ITEMS[n.wants.item].name} for ${who}`))(n.name), items[0], 'walk', r);
+      } else if (n.present) {
+        add(`${r.id}:sign`, `Get ${n.name} to sign off on the ${r.name}`, n, 'talk', r, { npc: n });
+      }
+      continue;
+    }
+    for (const id of r.stamps) {
+      if (r.stamped.has(id)) continue;
+      const b = g.bosses.find((x) => x.id === id);
+      if (b.reviewing <= 0) add(`stamp:${id}`, `Ask ${b.name} to stamp the ${r.name} (walk right up to him)`, b, 'boss', r, { bias: 8, moving: true });
+    }
+  }
+  if (!steps.length && readyCount(g) === g.reports.length) add('submit', 'Submit everything at the SRAG console', station('srag_console'), 'use', null);
+  return steps;
+}
+
+function updateGuide(g) {
+  const p = g.player, steps = guideSteps(g);
+  const score = (st) => dist(st, p) + st.bias;
+  steps.sort((a, b) => score(a) - score(b));
+  let step = g.guide && steps.find((s) => s.key === g.guide.key);
+  // Switch only for a job right beside you while the current one is far off.
+  if (step && steps[0] !== step && score(steps[0]) < 4.5 && score(step) > 2 * score(steps[0])) step = steps[0];
+  if (!step) step = steps[0] || null;
+  if (!step) { g.guide = null; return; }
+  const away = step.npc && step.npc.errand;
+  const where = step.moving ? 'on the move' : away ? `away from the desk (${placeName(g, step.x, step.y)})` : placeName(g, step.x, step.y);
+  g.guide = { ...step, where, dist: dist(step, p) };
+}
+
+// --------------------------------------------------------------- tips --
+// First-round coaching, one hint at a time, each triggered by what's
+// happening rather than fired all at once at the start.
+
+const TIPS = [
+  ['welcome', (g) => g.t > 0.3, 'Welcome to the 5th floor. WASD to walk, mouse to look. The arrow at the bottom points at your next job; the stack on the left is everything due.', 9],
+  ['deadline', (g) => g.t > 10, 'The big clock is the Flight Director\'s deadline. Every report in by then, or the crew shelters on guesswork.', 7],
+  ['interact', (g) => g.prompt && g.t > 3, 'Press E to talk to people and use things. Press M for the floor plan.', 6],
+  ['manager', (g) => g.bosses.some((b) => b.alert > 0.3 || b.state === 'chase'), 'That\'s management. They only see what\'s in front of them: break line of sight, or throw a memo (Space) and they\'ll stop to read it. In full.', 8],
+  ['caught', (g) => g.stats.catches > 0, 'Getting caught costs sanity. Coffee (C) brings it back. Managers do have a use: walk up to one when a report needs their stamp.', 8],
+  ['sanity', (g) => g.player.sanity < 45, 'Sanity is running low. Drink a coffee (C), or win a round of Jeopardy with Amir for +20.', 7],
+  ['flare', (g) => g.flare.state !== 'idle', 'Solar flare: the crew\'s dose climbs faster until you submit. Janet in the console room can give you early warnings.', 7],
+  ['kevin', (g) => g.gravity > 0.2, 'Kevin loves neutrinos. Keep walking, or press E repeatedly to excuse yourself once he has you.', 6],
+  ['errand', (g) => g.guide && g.guide.npc && g.guide.npc.errand, 'People wander: coffee, the copier, a chat. The arrow follows them.', 6],
+  ['stamps', (g) => g.reports.some((r) => r.stamps.size && !reportReady(r) && (!r.task || r.task.done) && (!r.signoff || r.signoff.signed)), 'Stamps: find the manager and press E right in front of him. He reviews, you wait, he stamps. It counts as a meeting, so it costs a little sanity.', 8],
+];
+
+function updateTips(g) {
+  const tips = g.tips;
+  if (!tips.on || g.t < tips.busyUntil || g.chat || g.quiz || g.mini) return;
+  const tip = TIPS.find(([id, when]) => !tips.seen.has(id) && when(g));
+  if (!tip) return;
+  tips.seen.add(tip[0]);
+  tips.busyUntil = g.t + tip[3] + 2;
+  toast(g, tip[2], 'tip', tip[3]);
 }
 
 export function markExplored(g, radius) {

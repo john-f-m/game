@@ -118,8 +118,9 @@ function botInput(g, bot) {
   }
 
   // Commit to one step at a time (nearest first; waiting on the vehicle
-  // run only when nothing else is left).
-  const steps = stepsFor(g, bot);
+  // run only when nothing else is left). A "guided" bot plays like a new
+  // player: it only ever does what the in-game arrow says.
+  const steps = bot.guided ? (g.guide ? [{ key: g.guide.key, target: g.guide, act: g.guide.act, wait: g.guide.act === 'wait' }] : []) : stepsFor(g, bot);
   let step = steps.find((s) => s.key === bot.stepKey);
   if (!step) {
     const work = steps.filter((s) => !s.wait);
@@ -163,11 +164,11 @@ function newBot(g, mode, seed) {
   const floor = [];
   reach.forEach((v, i) => v && floor.push({ x: (i % g.world.w) + 0.5, y: Math.floor(i / g.world.w) + 0.5 }));
   let r = seed * 48271;
-  return { lastThrow: -9, lastInteract: -9, lastTap: -9, explore: mode === 'explorer', floor, rand: () => ((r = (r * 16807) % 2147483647) / 2147483647) };
+  return { lastThrow: -9, lastInteract: -9, lastTap: -9, explore: mode === 'explorer', guided: mode === 'guided', floor, rand: () => ((r = (r * 16807) % 2147483647) / 2147483647) };
 }
 
-console.log('2. Bot playthroughs (bots ignore stealth; "explorer" wanders like a first-time player)');
-for (const [mode, diff] of [['expert', 'intern'], ['expert', 'analyst'], ['expert', 'director'], ['explorer', 'intern'], ['explorer', 'analyst'], ['explorer', 'director']]) {
+console.log('2. Bot playthroughs (bots ignore stealth; "explorer" wanders like a first-time player; "guided" only follows the arrow)');
+for (const [mode, diff] of [['expert', 'intern'], ['expert', 'analyst'], ['expert', 'director'], ['explorer', 'intern'], ['explorer', 'analyst'], ['explorer', 'director'], ['guided', 'intern'], ['guided', 'analyst']]) {
   const runs = [];
   for (let seed = 1; seed <= 24; seed++) {
     const g = createGame({ office, encounters, difficulty: diff, seed });
@@ -374,6 +375,31 @@ console.log('4. Activities and coworkers');
   press(g, { answer: g.quiz.answer + 1 });
   expect(amir.quizLines.right.some((l) => g.dialog?.lines[0].endsWith(l)), `Amir reacts in his own words ("${g.dialog?.lines[0]}")`);
   expect(!amir.look.beard, 'Amir is clean-shaven');
+
+  // The guide: always something to do, pointing at a real place.
+  g = fresh();
+  expect(g.guide && Number.isFinite(g.guide.dist) && /hallway|office|room|lab|move/i.test(g.guide.where), `the arrow has a target from the start ("${g.guide?.text}" · ${g.guide?.where})`);
+  const firstKey = g.guide.key;
+  run(g, 3, () => ({ forward: 1 }));
+  expect(g.guide.key === firstKey, 'the pick sticks while you walk');
+  for (const r of g.reports) { if (r.task) r.task.done = true; if (r.signoff) r.signoff.signed = true; r.stamps.forEach((id) => r.stamped.add(id)); }
+  run(g, 0.1);
+  expect(g.guide?.key === 'submit', 'with everything ready it points at the SRAG console');
+  g = fresh();
+  const katie = npc(g, 'Katie');
+  Object.assign(g.player, { x: katie.x, y: katie.y - 1 });
+  run(g, 0.1);
+  expect(/timesheet/i.test(g.guide.text) && g.items.some((it) => it.type === 'timesheet' && near(it, g.guide) < 0.01), `near Katie it sends you for her timesheet first ("${g.guide.text}" · ${g.guide.where})`);
+  g.player.items.add('timesheet');
+  run(g, 0.1);
+  expect(/Katie/.test(g.guide.text) && near(katie, g.guide) < 0.01, `with the timesheet in hand it points at Katie ("${g.guide.text}")`);
+  g = fresh();
+  const tipsSeen = [];
+  run(g, 14, () => { for (const t of g.toasts) if (t.kind === 'tip' && !tipsSeen.includes(t.text)) tipsSeen.push(t.text); return {}; });
+  expect(tipsSeen.length >= 2 && tipsSeen[0].startsWith('Welcome') && g.toasts.filter((t) => t.kind === 'tip').length <= 1, `hints arrive one at a time (${tipsSeen.length} in 14 s)`);
+  g = createGame({ office, encounters, seed: 11, tips: false });
+  run(g, 14);
+  expect(!g.tips.on && g.toasts.every((t) => t.kind !== 'tip'), 'hints can be turned off');
 
   // Everyone with a desk gets up now and then, and comes back.
   g = fresh({ errands: true });
