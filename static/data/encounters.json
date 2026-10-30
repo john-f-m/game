@@ -581,7 +581,7 @@
         5
       ],
       "npc": "Martin",
-      "title": "Says hello",
+      "title": "Radiation physicist",
       "look": {
         "hair": "#3b2a1e",
         "skin": "#e8b48c",
@@ -606,7 +606,7 @@
         1
       ],
       "npc": "Martin",
-      "title": "Space solar power",
+      "title": "Space power engineer",
       "look": {
         "hair": "#2b1d14",
         "skin": "#d9a37c",
@@ -628,7 +628,7 @@
         9
       ],
       "npc": "Stewart",
-      "title": "Physics, confrontationally",
+      "title": "Senior physicist",
       "look": {
         "hair": "#5a3a22",
         "skin": "#f0c8a0",
@@ -720,14 +720,13 @@
         17
       ],
       "npc": "Kerry",
-      "title": "Runner, chicken deal finder",
+      "title": "CAD People Person",
       "look": {
         "hair": "#c9a36b",
         "skin": "#f0c8a0",
         "shirt": "#2f9a4a",
         "pants": "#1b1b1b",
-        "stripes": true,
-        "long_hair": true
+        "stripes": true
       },
       "lines": [
         "🗣️ Kerry: Want to go for a run after work? Just a quick 30 miles. Flat, mostly.",
@@ -744,7 +743,7 @@
         22
       ],
       "npc": "Dan",
-      "title": "Denim, old Macs, hydrogen",
+      "title": "Detector physicist",
       "look": {
         "hair": "#4a3a2a",
         "skin": "#e8b48c",
