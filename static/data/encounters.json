@@ -1,17 +1,52 @@
 {
-  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop. Hosts of a 'jeopardy' quiz can have their own reactions: 'quiz_right', 'quiz_wrong', 'quiz_late' (lists of lines). Everyone with a desk (no patrol or drop-in) leaves it on an errand now and then; 'ambient.errands' has what people say when you catch them. Conversation traps: 'black_hole' (pulls you in when you get close; 'topic' names what they love to talk about), 'physics' (triggers when you talk to them three times in quick succession, then walks you to their 'home' spot) and 'drop_in' (arrives from the elevator now and then and seeks you out).",
+  "_help": "reports: what must be ready before you can submit at the SRAG console. 'task' is work at a station (detector, vehicle, medical) or 'astronaut' (debrief the visiting astronaut); 'signoff' is a coworker's name; 'stamps' lists managers (boss ids from office.json) whose approval stamp it needs, and management reviews add more during the round. Coworkers: 'location' is [column, row] in office.json; 'wants' (optional) is an item they need first (coffee, timesheet, r13, memos, dosimetry); 'gives' hands you an item; 'look' sets sprite colours (extras: long_hair, glasses ('thick' for thick rims), beard, mustache, bald, headset, tie, flightsuit, rainbow_jacket, bracelets). Helpers can have a 'perk': freeze_managers, flare_watch, fast_reviews, jeopardy (uses 'quiz'; answer is 1, 2 or 3), people_person, remote_access, sim_priority, gcr_model. 'patrol' makes someone walk a loop. Hosts of a 'jeopardy' quiz can have 'quiz_prompt' and 'quiz_title' and their own reactions: 'quiz_right', 'quiz_wrong', 'quiz_late' (lists of lines). Everyone with a desk (no patrol or drop-in) leaves it on an errand now and then; 'ambient.errands' has what people say when you catch them. Conversation traps: 'black_hole' (pulls you in when you get close; 'topic' names what they love to talk about), 'physics' (triggers when you talk to them three times in quick succession, then walks you to their 'home' spot) and 'drop_in' (arrives from the elevator now and then and seeks you out). 'greet' (a line or list) is said out loud whenever you walk past them. 'stay_put' keeps someone at their desk (no errands).",
   "reports": [
-    { "id": "weekly", "name": "Weekly Report", "task": "detector", "signoff": "Nic" },
-    { "id": "tps", "name": "TPS Report", "signoff": "Katie" },
-    { "id": "mission_dose", "name": "Mission Dose Report", "task": "vehicle", "signoff": "Kevin" },
-    { "id": "astronaut_dose", "name": "Astronaut Dose Report", "task": "medical", "signoff": "John" },
-    { "id": "astronaut_risk", "name": "Astronaut Risk Report", "task": "astronaut", "stamps": ["eddie", "clifton"] }
+    {
+      "id": "weekly",
+      "name": "Weekly Report",
+      "task": "detector",
+      "signoff": "Nic"
+    },
+    {
+      "id": "tps",
+      "name": "TPS Report",
+      "signoff": "Katie"
+    },
+    {
+      "id": "mission_dose",
+      "name": "Mission Dose Report",
+      "task": "vehicle",
+      "signoff": "Kevin"
+    },
+    {
+      "id": "astronaut_dose",
+      "name": "Astronaut Dose Report",
+      "task": "medical",
+      "signoff": "John"
+    },
+    {
+      "id": "astronaut_risk",
+      "name": "Astronaut Risk Report",
+      "task": "astronaut",
+      "stamps": [
+        "eddie",
+        "clifton"
+      ]
+    }
   ],
   "npc_encounters": [
     {
-      "location": [8, 10],
+      "location": [
+        8,
+        10
+      ],
       "npc": "Nic",
-      "look": { "hair": "#2b1d14", "skin": "#c98e62", "shirt": "#6d8f4e", "pants": "#3a3f4a" },
+      "look": {
+        "hair": "#2b1d14",
+        "skin": "#c98e62",
+        "shirt": "#6d8f4e",
+        "pants": "#3a3f4a"
+      },
       "lines": [
         "🗣️ Nic: Eddie added another form to the radiation tracking stack. I've started giving them names.",
         "🗣️ Nic: Sometimes I wonder if a solar flare could take out this whole floor... and our paperwork with it."
@@ -19,9 +54,18 @@
       "sign": "Fine, I'll sign off on the Weekly Report. If the flare takes out the paperwork, at least my signature goes down with it."
     },
     {
-      "location": [9, 22],
+      "location": [
+        9,
+        22
+      ],
       "npc": "Katie",
-      "look": { "hair": "#a0522d", "skin": "#f0c8a0", "shirt": "#8e5aa8", "pants": "#2d2f3a", "long_hair": true },
+      "look": {
+        "hair": "#a0522d",
+        "skin": "#f0c8a0",
+        "shirt": "#8e5aa8",
+        "pants": "#2d2f3a",
+        "long_hair": true
+      },
       "lines": [
         "🗣️ Katie: If Clifton asks about my timesheet one more time, I'm framing it and hanging it in his office.",
         "🗣️ Katie: At least if the sun explodes, I won’t have to finish my TPS reports."
@@ -33,10 +77,20 @@
       }
     },
     {
-      "location": [22, 14],
+      "location": [
+        22,
+        14
+      ],
       "npc": "Kevin",
       "title": "Neutrino enthusiast",
-      "look": { "hair": "#5a3a22", "skin": "#e8b48c", "shirt": "#c0504d", "pants": "#3b3b3b", "mustache": "#5a3a22", "glasses": "thick" },
+      "look": {
+        "hair": "#5a3a22",
+        "skin": "#e8b48c",
+        "shirt": "#c0504d",
+        "pants": "#3b3b3b",
+        "mustache": "#5a3a22",
+        "glasses": "thick"
+      },
       "lines": [
         "🗣️ Kevin: About sixty-five billion solar neutrinos go through your thumbnail every second. Isn't that wonderful?",
         "🗣️ Kevin: Neutrinos hardly ever interact with anything. You have to admire the focus.",
@@ -61,24 +115,71 @@
       }
     },
     {
-      "location": [29, 13],
+      "location": [
+        29,
+        13
+      ],
       "npc": "John",
-      "look": { "hair": "#3a3a3a", "skin": "#d9a37c", "shirt": "#4f7fb5", "pants": "#2f3340", "glasses": true },
+      "look": {
+        "hair": "#3a3a3a",
+        "skin": "#d9a37c",
+        "shirt": "#4f7fb5",
+        "pants": "#2f3340",
+        "glasses": true
+      },
       "lines": [
-        "🗣️ John: I told Eddie I was exposed to gamma... he said ‘Did you file an R-13 for that?’",
-        "🗣️ John: If Clifton asks ‘what is it you do here?’ again, I’ll tell him: I absorb solar storms... emotionally."
+        "🗣️ John: Hey, do you know where the weight room is? ...Actually, never mind. I'll check it out.",
+        "🗣️ John: Where's the weight room in this building? No, don't tell me, I'll find it.",
+        "🗣️ John: (A red dot wanders across the ceiling. John looks innocent. The laser pointer is in his hand.)",
+        "🗣️ John: I told Eddie I was exposed to gamma... he said ‘Did you file an R-13 for that?’"
       ],
       "wants": {
         "item": "r13",
         "ask": "I'll sign off on your Astronaut Dose Report if you grab me a blank R-13 from Eddie's filing cabinets. His office is on the north side. Don't let him see you.",
         "thanks": "A fresh R-13. Smells like bureaucracy. Your Astronaut Dose Report is signed."
-      }
+      },
+      "title": "Dose analyst, laser pointer enthusiast"
     },
     {
       "npc": "Ryan",
       "title": "IT",
-      "look": { "hair": "#6b4a2b", "skin": "#e6b391", "shirt": "#2e2f38", "pants": "#3a3f4a", "glasses": true },
-      "patrol": [[16, 21], [17, 19], [10, 19], [10, 4], [20, 4], [20, 19], [17, 19]],
+      "look": {
+        "hair": "#6b4a2b",
+        "skin": "#e6b391",
+        "shirt": "#2e2f38",
+        "pants": "#3a3f4a",
+        "glasses": true
+      },
+      "patrol": [
+        [
+          16,
+          21
+        ],
+        [
+          17,
+          19
+        ],
+        [
+          10,
+          19
+        ],
+        [
+          10,
+          4
+        ],
+        [
+          20,
+          4
+        ],
+        [
+          20,
+          19
+        ],
+        [
+          17,
+          19
+        ]
+      ],
       "speed": 1.3,
       "lines": [
         "🗣️ Ryan: Have you tried turning the solar storm off and on again?",
@@ -91,7 +192,10 @@
       },
       "perk": "freeze_managers",
       "physics": {
-        "home": [16, 21],
+        "home": [
+          16,
+          21
+        ],
         "lines": [
           "Okay, so: a muon hits the top of the atmosphere at 0.998c. How long does it think this hallway is?",
           "Let me just draw this on the whiteboard. You'll love it. It has integrals.",
@@ -102,10 +206,20 @@
       }
     },
     {
-      "location": [17, 22],
+      "location": [
+        17,
+        22
+      ],
       "npc": "Janet",
       "title": "Mission Control Console",
-      "look": { "hair": "#c9a36b", "skin": "#f0c8a0", "shirt": "#3d5a80", "pants": "#2d2f3a", "long_hair": true, "headset": true },
+      "look": {
+        "hair": "#c9a36b",
+        "skin": "#f0c8a0",
+        "shirt": "#3d5a80",
+        "pants": "#2d2f3a",
+        "long_hair": true,
+        "headset": true
+      },
       "lines": [
         "🗣️ Janet: I've got the sun on one monitor and Eddie's forms on the other. Guess which one's scarier.",
         "🗣️ Janet: We are GO for coffee. NO-GO for Clifton's timesheet audit."
@@ -114,10 +228,19 @@
       "perk_line": "I'll patch you into the console loop. You'll hear about flares early, and I'll get the crew sheltering sooner."
     },
     {
-      "location": [19, 22],
+      "location": [
+        19,
+        22
+      ],
       "npc": "Jennifer",
       "title": "Console operations",
-      "look": { "hair": "#1f1a17", "skin": "#c98e62", "shirt": "#2e8b8b", "pants": "#2d2f3a", "long_hair": true },
+      "look": {
+        "hair": "#1f1a17",
+        "skin": "#c98e62",
+        "shirt": "#2e8b8b",
+        "pants": "#2d2f3a",
+        "long_hair": true
+      },
       "lines": [
         "🗣️ Jennifer: The console room runs on caffeine and checklists.",
         "🗣️ Jennifer: If a run gets queued behind one of Ryan's physics jobs, it's queued forever."
@@ -126,10 +249,19 @@
       "perk_line": "I'll bump your vehicle dose run to the front of the queue. Twice as fast. Don't tell Ryan."
     },
     {
-      "location": [21, 22],
+      "location": [
+        21,
+        22
+      ],
       "npc": "Mark",
       "title": "Console IT",
-      "look": { "hair": "#7a5230", "skin": "#e6b391", "shirt": "#3a4a5a", "pants": "#2d2f3a", "glasses": true },
+      "look": {
+        "hair": "#7a5230",
+        "skin": "#e6b391",
+        "shirt": "#3a4a5a",
+        "pants": "#2d2f3a",
+        "glasses": true
+      },
       "lines": [
         "🗣️ Mark: Console IT. If it beeps, it's mine.",
         "🗣️ Mark: Fifteen monitors, one keyboard, zero problems. Okay, two problems."
@@ -138,10 +270,19 @@
       "perk_line": "I'll set you up with remote access to the vehicle run. Go do your other stuff; it'll keep cranking."
     },
     {
-      "location": [6, 7],
+      "location": [
+        6,
+        7
+      ],
       "npc": "Steve",
       "title": "Spreadsheets",
-      "look": { "hair": "#4a3a2a", "skin": "#d9a37c", "shirt": "#5c9e4a", "pants": "#353b48", "glasses": true },
+      "look": {
+        "hair": "#4a3a2a",
+        "skin": "#d9a37c",
+        "shirt": "#5c9e4a",
+        "pants": "#353b48",
+        "glasses": true
+      },
       "lines": [
         "🗣️ Steve: Everything is a spreadsheet if you believe in yourself.",
         "🗣️ Steve: Eddie asked for a legend on my color-coded dose tracker. I gave him a pivot table. He hasn't spoken to me since."
@@ -150,10 +291,19 @@
       "perk_line": "Hand me your reports. Pivot tables, conditional formatting, frozen header row... There. Management will approve these twice as fast."
     },
     {
-      "location": [5, 1],
+      "location": [
+        5,
+        1
+      ],
       "npc": "Ramona",
       "title": "Dosimeters",
-      "look": { "hair": "#2b1d14", "skin": "#c98e62", "shirt": "#d9a441", "pants": "#3a3f4a", "long_hair": true },
+      "look": {
+        "hair": "#2b1d14",
+        "skin": "#c98e62",
+        "shirt": "#d9a441",
+        "pants": "#3a3f4a",
+        "long_hair": true
+      },
       "lines": [
         "🗣️ Ramona: Badge on, badge facing out. Every dosimeter tells a story. Yours is a thriller.",
         "🗣️ Ramona: I read dosimeters the way other people read tea leaves."
@@ -162,10 +312,20 @@
       "give_line": "Here are the crew's dosimeter readings. Every badge, every day. Don't spill coffee on them."
     },
     {
-      "location": [13, 1],
+      "location": [
+        13,
+        1
+      ],
       "npc": "Serkan",
       "title": "Cosmic radiation modeling",
-      "look": { "hair": "#2b2622", "skin": "#d9a37c", "shirt": "#b28ad6", "pants": "#2d2f3a", "rainbow_jacket": true, "bracelets": true },
+      "look": {
+        "hair": "#2b2622",
+        "skin": "#d9a37c",
+        "shirt": "#b28ad6",
+        "pants": "#2d2f3a",
+        "rainbow_jacket": true,
+        "bracelets": true
+      },
       "lines": [
         "🗣️ Serkan: I ran the galactic cosmic ray model again last night. For fun. Want to see the spectra?",
         "🗣️ Serkan: My Little Pony taught me friendship is magic. Transport codes taught me shielding is mass.",
@@ -176,10 +336,20 @@
       "perk_line": "Vehicle dose? I already modeled it. Twice. Here, take my run, it's half done."
     },
     {
-      "location": [29, 5],
+      "location": [
+        29,
+        5
+      ],
       "npc": "Pat",
       "title": "Galactic cosmic ray model",
-      "look": { "hair": "#b5b5b5", "skin": "#e8b48c", "shirt": "#8a6f4e", "pants": "#3b3b3b", "glasses": true, "mustache": "#b5b5b5" },
+      "look": {
+        "hair": "#b5b5b5",
+        "skin": "#e8b48c",
+        "shirt": "#8a6f4e",
+        "pants": "#3b3b3b",
+        "glasses": true,
+        "mustache": "#b5b5b5"
+      },
       "lines": [
         "🗣️ Pat: I once told a joke about a cosmic ray. It went right through everyone.",
         "🗣️ Pat: Back in my day we tracked cosmic rays with a cloud chamber and a lot of patience. Mostly patience.",
@@ -192,10 +362,18 @@
       ]
     },
     {
-      "location": [24, 7],
+      "location": [
+        24,
+        7
+      ],
       "npc": "Amir",
       "title": "Jeopardy Aficionado",
-      "look": { "hair": "#2a1d16", "skin": "#b98560", "shirt": "#2f4f9f", "pants": "#2f3340" },
+      "look": {
+        "hair": "#2a1d16",
+        "skin": "#b98560",
+        "shirt": "#2f4f9f",
+        "pants": "#2f3340"
+      },
       "lines": [
         "🗣️ Amir: Ope, didn't see ya there. I'll take Space Weather for 800, if that's all right.",
         "🗣️ Amir: Now remember, answer in the form of a question. You bet.",
@@ -203,26 +381,118 @@
         "🗣️ Amir: Grab yourself a pop and let's play a round real quick."
       ],
       "perk": "jeopardy",
-      "quiz_right": ["Well, how about that! That's correct.", "Heck yeah, that's right. You're on a roll now.", "Well, I'll be. Correct!"],
-      "quiz_wrong": ["Ope, sorry. Not quite.", "Aw, shoot. Close, though.", "Oh, for Pete's sake, so close."],
-      "quiz_late": ["Ope, that's time.", "Well, shoot, that's time."],
+      "quiz_right": [
+        "Well, how about that! That's correct.",
+        "Heck yeah, that's right. You're on a roll now.",
+        "Well, I'll be. Correct!"
+      ],
+      "quiz_wrong": [
+        "Ope, sorry. Not quite.",
+        "Aw, shoot. Close, though.",
+        "Oh, for Pete's sake, so close."
+      ],
+      "quiz_late": [
+        "Ope, that's time.",
+        "Well, shoot, that's time."
+      ],
       "quiz": [
-        { "clue": "This SI unit of dose equivalent is worth 100 rem.", "choices": ["What is the gray?", "What is the sievert?", "What is the becquerel?"], "answer": 2 },
-        { "clue": "This SI unit of absorbed dose is one joule per kilogram.", "choices": ["What is the gray?", "What is the curie?", "What is the roentgen?"], "answer": 1 },
-        { "clue": "Earth's belts of trapped radiation are named for this Iowa physicist.", "choices": ["Who is Van Allen?", "Who is Geiger?", "Who is Roentgen?"], "answer": 1 },
-        { "clue": "The huge solar particle event of August 1972 struck between these two missions.", "choices": ["What are Apollo 11 and 12?", "What are Apollo 13 and 14?", "What are Apollo 16 and 17?"], "answer": 3 },
-        { "clue": "Mission Control at Johnson Space Center is in this numbered building.", "choices": ["What is Building 1?", "What is Building 9?", "What is Building 30?"], "answer": 3 },
-        { "clue": "This weak spot in Earth's magnetic field gives the ISS a radiation bump on many orbits.", "choices": ["What is the South Atlantic Anomaly?", "What is the Bermuda Triangle?", "What is the aurora borealis?"], "answer": 1 },
-        { "clue": "On a space weather alert, CME stands for this.", "choices": ["What is a cosmic microwave echo?", "What is a coronal mass ejection?", "What is a crew medical exam?"], "answer": 2 },
-        { "clue": "This station has had people aboard continuously since November 2000.", "choices": ["What is Mir?", "What is Skylab?", "What is the ISS?"], "answer": 3 },
-        { "clue": "PC LOAD LETTER baffled the staff in this 1999 office comedy.", "choices": ["What is Office Space?", "What is The Office?", "What is Clerks?"], "answer": 1 }
+        {
+          "clue": "This SI unit of dose equivalent is worth 100 rem.",
+          "choices": [
+            "What is the gray?",
+            "What is the sievert?",
+            "What is the becquerel?"
+          ],
+          "answer": 2
+        },
+        {
+          "clue": "This SI unit of absorbed dose is one joule per kilogram.",
+          "choices": [
+            "What is the gray?",
+            "What is the curie?",
+            "What is the roentgen?"
+          ],
+          "answer": 1
+        },
+        {
+          "clue": "Earth's belts of trapped radiation are named for this Iowa physicist.",
+          "choices": [
+            "Who is Van Allen?",
+            "Who is Geiger?",
+            "Who is Roentgen?"
+          ],
+          "answer": 1
+        },
+        {
+          "clue": "The huge solar particle event of August 1972 struck between these two missions.",
+          "choices": [
+            "What are Apollo 11 and 12?",
+            "What are Apollo 13 and 14?",
+            "What are Apollo 16 and 17?"
+          ],
+          "answer": 3
+        },
+        {
+          "clue": "Mission Control at Johnson Space Center is in this numbered building.",
+          "choices": [
+            "What is Building 1?",
+            "What is Building 9?",
+            "What is Building 30?"
+          ],
+          "answer": 3
+        },
+        {
+          "clue": "This weak spot in Earth's magnetic field gives the ISS a radiation bump on many orbits.",
+          "choices": [
+            "What is the South Atlantic Anomaly?",
+            "What is the Bermuda Triangle?",
+            "What is the aurora borealis?"
+          ],
+          "answer": 1
+        },
+        {
+          "clue": "On a space weather alert, CME stands for this.",
+          "choices": [
+            "What is a cosmic microwave echo?",
+            "What is a coronal mass ejection?",
+            "What is a crew medical exam?"
+          ],
+          "answer": 2
+        },
+        {
+          "clue": "This station has had people aboard continuously since November 2000.",
+          "choices": [
+            "What is Mir?",
+            "What is Skylab?",
+            "What is the ISS?"
+          ],
+          "answer": 3
+        },
+        {
+          "clue": "PC LOAD LETTER baffled the staff in this 1999 office comedy.",
+          "choices": [
+            "What is Office Space?",
+            "What is The Office?",
+            "What is Clerks?"
+          ],
+          "answer": 1
+        }
       ]
     },
     {
-      "location": [16, 13],
+      "location": [
+        16,
+        13
+      ],
       "npc": "Mark",
       "title": "People Person",
-      "look": { "hair": "#8a6a4a", "skin": "#e8b48c", "shirt": "#eef0f2", "pants": "#3b3b3b", "tie": "#c0392b" },
+      "look": {
+        "hair": "#8a6a4a",
+        "skin": "#e8b48c",
+        "shirt": "#eef0f2",
+        "pants": "#3b3b3b",
+        "tie": "#c0392b"
+      },
       "lines": [
         "🗣️ Mark: I'm a people person. I take the paperwork to management so the engineers don't have to.",
         "🗣️ Mark: What would you say I do here? I talk to Eddie and Clifton, so you don't have to."
@@ -233,8 +503,31 @@
     {
       "npc": "Astronaut",
       "title": "Visiting crew member",
-      "look": { "hair": "#3b2a1e", "skin": "#e8b48c", "shirt": "#2f5d9e", "pants": "#2f5d9e", "flightsuit": true },
-      "patrol": [[11, 8], [11, 16], [19, 16], [19, 8]],
+      "look": {
+        "hair": "#3b2a1e",
+        "skin": "#e8b48c",
+        "shirt": "#2f5d9e",
+        "pants": "#2f5d9e",
+        "flightsuit": true
+      },
+      "patrol": [
+        [
+          11,
+          8
+        ],
+        [
+          11,
+          16
+        ],
+        [
+          19,
+          16
+        ],
+        [
+          19,
+          8
+        ]
+      ],
       "speed": 1.5,
       "lines": [
         "🗣️ Astronaut: Busy day? I've had busier. In orbit.",
@@ -251,14 +544,26 @@
     {
       "npc": "Neil",
       "title": "Former manager",
-      "look": { "skin": "#e8b48c", "shirt": "#cfe0f5", "pants": "#3b3b3b", "bald": true, "dress_shirt": true },
+      "look": {
+        "skin": "#e8b48c",
+        "shirt": "#cfe0f5",
+        "pants": "#3b3b3b",
+        "bald": true,
+        "dress_shirt": true
+      },
       "lines": [
         "🗣️ Neil: Oh, hi. Just passing through. As one does."
       ],
       "drop_in": {
-        "from": [11, 10],
+        "from": [
+          11,
+          10
+        ],
         "first": 45,
-        "every": [70, 110],
+        "every": [
+          70,
+          110
+        ],
         "exit": "Anyway, I won't keep you.",
         "lines": [
           "Why did the proton get promoted? Positive attitude. ...Anyway.",
@@ -269,18 +574,238 @@
           "A watched dosimeter never accumulates. Or does it? Think about it."
         ]
       }
+    },
+    {
+      "location": [
+        1,
+        5
+      ],
+      "npc": "Martin",
+      "title": "Says hello",
+      "look": {
+        "hair": "#3b2a1e",
+        "skin": "#e8b48c",
+        "shirt": "#eef0f2",
+        "pants": "#2d2f3a",
+        "flag": "cz"
+      },
+      "greet": [
+        "Hello Doctor, Doctor, Doctor, Doctor.",
+        "Hello Doctor! Doctor. Doctor. Doctor.",
+        "Ah, Doctor, Doctor, Doctor, Doctor. Hello."
+      ],
+      "lines": [
+        "🗣️ Martin: Hello Doctor, Doctor, Doctor, Doctor. Four doctors in the hallway, I greet them all.",
+        "🗣️ Martin: In Czechia we say dobrý den. Here I say hello, Doctor. Many times. It is efficient.",
+        "🗣️ Martin: The flag? So people know who is greeting them. Hello, Doctor."
+      ]
+    },
+    {
+      "location": [
+        25,
+        1
+      ],
+      "npc": "Martin",
+      "title": "Space solar power",
+      "look": {
+        "hair": "#2b1d14",
+        "skin": "#d9a37c",
+        "shirt": "#d9a441",
+        "pants": "#353b48",
+        "glasses": true
+      },
+      "stay_put": true,
+      "lines": [
+        "🗣️ Martin: Solar panels in orbit, beam the power down by microwave. No clouds, no night. Get to the chopper, I mean the console, I'll show you.",
+        "🗣️ Martin: A gigawatt from space. 'I'll be back.' That's the satellite, every ninety minutes.",
+        "🗣️ Martin: Lunch? I eat at my desk. Right here. Every day. 'Come with me if you want to lunch.'",
+        "🗣️ Martin: 'It's not a tumor.' It's a rectenna. Two square kilometers of it."
+      ]
+    },
+    {
+      "location": [
+        29,
+        9
+      ],
+      "npc": "Stewart",
+      "title": "Physics, confrontationally",
+      "look": {
+        "hair": "#5a3a22",
+        "skin": "#f0c8a0",
+        "shirt": "#3d5a80",
+        "pants": "#2d2f3a",
+        "beard": true
+      },
+      "lines": [
+        "🗣️ Stewart: Entropy. Explain it. Right now. No, properly.",
+        "🗣️ Stewart: You said 'heavy ions' in the meeting. Define heavy. I'll wait.",
+        "🗣️ Stewart: Bremsstrahlung. Say it. Now tell me why it matters for your shielding."
+      ],
+      "perk": "jeopardy",
+      "quiz_prompt": "Take Stewart's physics challenge",
+      "quiz_title": "STEWART WOULD LIKE A WORD",
+      "quiz_right": [
+        "Hm. Correct. Don't let it go to your head.",
+        "Fine. Yes. That's right.",
+        "Acceptable."
+      ],
+      "quiz_wrong": [
+        "No. Think about it and come back.",
+        "Wrong. And you work here."
+      ],
+      "quiz_late": [
+        "Too slow. Physics doesn't wait.",
+        "Time. Nature abhors a pause."
+      ],
+      "quiz": [
+        {
+          "clue": "Charged particles slowing in matter radiate this.",
+          "choices": [
+            "What is bremsstrahlung?",
+            "What is Cherenkov light?",
+            "What is fluorescence?"
+          ],
+          "answer": 1
+        },
+        {
+          "clue": "The energy to lift hydrogen's electron from n=1 to n=2.",
+          "choices": [
+            "What is 1.9 eV?",
+            "What is 10.2 eV?",
+            "What is 13.6 eV?"
+          ],
+          "answer": 2
+        },
+        {
+          "clue": "Dose deposited per unit path length by a charged particle.",
+          "choices": [
+            "What is linear energy transfer?",
+            "What is fluence?",
+            "What is half-value layer?"
+          ],
+          "answer": 1
+        },
+        {
+          "clue": "The Bragg peak happens near the end of the range of these.",
+          "choices": [
+            "What are gamma rays?",
+            "What are protons?",
+            "What are neutrinos?"
+          ],
+          "answer": 2
+        },
+        {
+          "clue": "This quantity never decreases in an isolated system.",
+          "choices": [
+            "What is enthalpy?",
+            "What is entropy?",
+            "What is momentum?"
+          ],
+          "answer": 2
+        },
+        {
+          "clue": "Aluminum shielding can make secondary radiation worse through these.",
+          "choices": [
+            "What are neutrons?",
+            "What are photons?",
+            "What are electrons?"
+          ],
+          "answer": 1
+        }
+      ]
+    },
+    {
+      "location": [
+        1,
+        17
+      ],
+      "npc": "Kerry",
+      "title": "Runner, chicken deal finder",
+      "look": {
+        "hair": "#c9a36b",
+        "skin": "#f0c8a0",
+        "shirt": "#2f9a4a",
+        "pants": "#1b1b1b",
+        "stripes": true,
+        "long_hair": true
+      },
+      "lines": [
+        "🗣️ Kerry: Want to go for a run after work? Just a quick 30 miles. Flat, mostly.",
+        "🗣️ Kerry: Popeyes has a deal: eight pieces for the price of five. We should go. Today. Now, even.",
+        "🗣️ Kerry: I ran here. From Clear Lake. It's basically a warm-up.",
+        "🗣️ Kerry: Chicken, then a run. Or a run, then chicken. I've modeled both."
+      ],
+      "perk": "cardio",
+      "perk_line": "Come on, a quick run around the building. Twelve laps. You'll feel great. Then Popeyes."
+    },
+    {
+      "location": [
+        13,
+        22
+      ],
+      "npc": "Dan",
+      "title": "Denim, old Macs, hydrogen",
+      "look": {
+        "hair": "#4a3a2a",
+        "skin": "#e8b48c",
+        "shirt": "#4f7fb5",
+        "pants": "#3b5f8e",
+        "denim": true,
+        "glasses": true
+      },
+      "lines": [
+        "🗣️ Dan: Denim jacket, denim jeans. Denim is a system. It also hides coffee.",
+        "🗣️ Dan: I've got a Macintosh SE in the office. It boots. It has opinions about your spreadsheet.",
+        "🗣️ Dan: Hydrogen, ground state to first excited: 10.2 electron volts. Beautiful number. Say it with me.",
+        "🗣️ Dan: Lyman-alpha. 121.6 nanometers. I have it on a mug."
+      ]
     }
   ],
   "ambient": {
     "errands": {
-      "coffee": ["Coffee run. Back in a minute.", "Is there any coffee left? Asking for the whole office.", "Just grabbing a refill. Walk with me?"],
-      "copy": ["Printing. Fingers crossed.", "The copier and I are working through some things.", "Collating. Very important collating."],
-      "console": ["Checking on a run in the console room.", "Mark's helping me with a login thing.", "Just looking at the big screens for a minute."],
-      "lab": ["Just borrowing a detector. I'll bring it back.", "Ramona said I could look at the new dosimeters.", "I wanted to see the detector prototype in person."],
-      "visit": ["Just catching up with someone.", "Had to ask a question in person. Faster than email.", "Dropping off a cable I borrowed in 2019."],
-      "stroll": ["Stretching my legs. Doctor's orders.", "Walking off a long meeting.", "Getting my steps in before the deadline."]
+      "coffee": [
+        "Coffee run. Back in a minute.",
+        "Is there any coffee left? Asking for the whole office.",
+        "Just grabbing a refill. Walk with me?"
+      ],
+      "copy": [
+        "Printing. Fingers crossed.",
+        "The copier and I are working through some things.",
+        "Collating. Very important collating."
+      ],
+      "console": [
+        "Checking on a run in the console room.",
+        "Mark's helping me with a login thing.",
+        "Just looking at the big screens for a minute."
+      ],
+      "lab": [
+        "Just borrowing a detector. I'll bring it back.",
+        "Ramona said I could look at the new dosimeters.",
+        "I wanted to see the detector prototype in person."
+      ],
+      "visit": [
+        "Just catching up with someone.",
+        "Had to ask a question in person. Faster than email.",
+        "Dropping off a cable I borrowed in 2019."
+      ],
+      "stroll": [
+        "Stretching my legs. Doctor's orders.",
+        "Walking off a long meeting.",
+        "Getting my steps in before the deadline."
+      ]
     },
-    "titles": ["Dose analyst", "Health physicist", "Space weather forecaster", "Radiation biologist", "Software engineer", "Data analyst", "Console operator", "Contractor", "Intern", "Shielding analyst"],
+    "titles": [
+      "Dose analyst",
+      "Health physicist",
+      "Space weather forecaster",
+      "Radiation biologist",
+      "Software engineer",
+      "Data analyst",
+      "Console operator",
+      "Contractor",
+      "Intern",
+      "Shielding analyst"
+    ],
     "lines": [
       "Busy. The dose numbers are due today.",
       "Has anyone seen my dosimeter? It was on my lanyard a second ago.",
@@ -302,7 +827,9 @@
       "Kevin explained neutrino oscillation to me for forty minutes. I think I finally get it.",
       "I color-coded my calendar. Now it's just all red.",
       "Lunch? I don't know her.",
-      "Does anyone know the Wi-Fi password? It changed. Again."
+      "Does anyone know the Wi-Fi password? It changed. Again.",
+      "Kerry asked if I wanted to run to Galveston. On a Tuesday.",
+      "Dan's Mac made a happy chime and we all applauded."
     ]
   },
   "puns": [
@@ -317,26 +844,77 @@
     "🗣️ From the console room: ‘Serkan, is that a pony on your jacket?’ ‘It's a cutie mark. Also, your shielding model is wrong.’",
     "🗣️ Overheard: ‘Kevin, are neutrinos going through my sandwich right now?’ ‘Billions. Enjoy your lunch.’",
     "🗣️ Overheard near a whiteboard: ‘...and that's why the muon thinks the hallway is shorter.’",
-    "🗣️ From the north-east office: ‘Pat, does your cosmic ray model run on anything newer than Fortran 77?’ ‘Run? It strolls.’"
+    "🗣️ From the north-east office: ‘Pat, does your cosmic ray model run on anything newer than Fortran 77?’ ‘Run? It strolls.’",
+    "🗣️ From the west hallway: ‘Hello Doctor, Doctor, Doctor, Doctor.’ ‘Hi Martin.’",
+    "🗣️ Overheard: ‘Kerry, how far is the run?’ ‘Forty miles.’ ‘Is that far?’ ‘Not really.’",
+    "🗣️ Overheard: ‘Stewart cornered me about entropy by the printer. The printer, Stewart!’",
+    "🗣️ From north office 6: ‘Hasta la vista, cloud cover.’ Martin is doing the solar power pitch again.",
+    "🗣️ Someone asks: ‘Who keeps shining a laser pointer on the ceiling?’ Silence from John's office.",
+    "🗣️ Overheard: ‘Dan, is that the same jacket?’ ‘It's a different denim.’"
   ],
   "bosses": {
     "eddie": {
-      "spot": ["Hold on. Is that an unfiled Weekly Report?", "You there! I've got a form for that.", "Got a second? It's about the radiation tracking stack."],
-      "hear": ["Hm? Who's out there without a hall pass form?", "Was that a printer jam? That needs a form."],
-      "lost": ["...I'll just add a form about that.", "Fine. I'll put it in the stack."],
-      "catch": ["Did you file a dose report for that? Here's the addendum, the appendix and a cover sheet.", "This goes on the radiation tracking stack. In triplicate."],
-      "stunned": ["Ooh, a memo. I must read it in full.", "A memo! Is this the new revision?"],
-      "review": ["Let's see... dose units, check. Font size... hmm.", "Did you use the new template? ...You did. Huh."],
-      "approve": ["Fine. Approved. Don't make it a habit.", "STAMP. Next!"]
+      "spot": [
+        "Hold on. Is that an unfiled Weekly Report?",
+        "You there! I've got a form for that.",
+        "Got a second? It's about the radiation tracking stack."
+      ],
+      "hear": [
+        "Hm? Who's out there without a hall pass form?",
+        "Was that a printer jam? That needs a form."
+      ],
+      "lost": [
+        "...I'll just add a form about that.",
+        "Fine. I'll put it in the stack."
+      ],
+      "catch": [
+        "Did you file a dose report for that? Here's the addendum, the appendix and a cover sheet.",
+        "This goes on the radiation tracking stack. In triplicate."
+      ],
+      "stunned": [
+        "Ooh, a memo. I must read it in full.",
+        "A memo! Is this the new revision?"
+      ],
+      "review": [
+        "Let's see... dose units, check. Font size... hmm.",
+        "Did you use the new template? ...You did. Huh."
+      ],
+      "approve": [
+        "Fine. Approved. Don't make it a habit.",
+        "STAMP. Next!"
+      ]
     },
     "clifton": {
-      "spot": ["Got a minute? It's about your timesheet...", "Hey! Quick question!", "Ah, just the person I wanted to audit."],
-      "hear": ["Someone there? I have a quick question.", "I heard footsteps. Billable footsteps?"],
-      "lost": ["I'll circle back.", "Let's put a pin in that."],
-      "catch": ["So... what is it you do here, exactly?", "Your timesheet says 'absorbing solar storms'. That's not a billing code.", "Your TPS Report is missing the new cover sheet."],
-      "stunned": ["A memo? I'll need to cross-reference this.", "Hmm, interesting memo. Let me just..."],
-      "review": ["Let me cross-reference this with your timesheet...", "Interesting. And what is it this report does here?"],
-      "approve": ["Approved. I'll circle back on the font.", "STAMP. Let's touch base next week."]
+      "spot": [
+        "Got a minute? It's about your timesheet...",
+        "Hey! Quick question!",
+        "Ah, just the person I wanted to audit."
+      ],
+      "hear": [
+        "Someone there? I have a quick question.",
+        "I heard footsteps. Billable footsteps?"
+      ],
+      "lost": [
+        "I'll circle back.",
+        "Let's put a pin in that."
+      ],
+      "catch": [
+        "So... what is it you do here, exactly?",
+        "Your timesheet says 'absorbing solar storms'. That's not a billing code.",
+        "Your TPS Report is missing the new cover sheet."
+      ],
+      "stunned": [
+        "A memo? I'll need to cross-reference this.",
+        "Hmm, interesting memo. Let me just..."
+      ],
+      "review": [
+        "Let me cross-reference this with your timesheet...",
+        "Interesting. And what is it this report does here?"
+      ],
+      "approve": [
+        "Approved. I'll circle back on the font.",
+        "STAMP. Let's touch base next week."
+      ]
     }
   }
 }

@@ -662,6 +662,20 @@ export function person(look = {}, seed = 1) {
   t.rect(4, 32, 3, 3, skin).rect(21, 32, 3, 3, shade(skin, 0.85));
   t.rect(12, 17, 4, 2, hex('#f2f2f2')).rect(13, 19, 2, 1, shade(shirt, 0.6));
   t.rect(12, 15, 4, 2, shade(skin, 0.85));
+  if (look.flag === 'cz') {
+    // A Czech flag patch on the chest.
+    t.rect(8, 21, 5, 2, hex('#ffffff')).rect(8, 23, 5, 2, hex('#d7141a')).rect(8, 21, 1, 4, hex('#11457e')).px(9, 22, hex('#11457e')).px(9, 23, hex('#11457e'));
+  }
+  if (look.denim) {
+    // Denim jacket: seams, pockets, buttons. The jeans are in the pants colour.
+    const seam = shade(shirt, 1.35);
+    t.rect(13, 19, 1, 14, seam).rect(7, 26, 5, 1, seam).rect(16, 26, 5, 1, seam).rect(8, 27, 3, 3, shade(shirt, 0.85)).rect(17, 27, 3, 3, shade(shirt, 0.85));
+    for (const y of [21, 24, 28, 31]) t.px(14, y, hex('#c9a36b'));
+  }
+  if (look.stripes) {
+    // Track jacket stripes down the arms.
+    t.rect(5, 18, 1, 14, hex('#ffffff')).rect(22, 18, 1, 14, hex('#ffffff'));
+  }
   if (look.flightsuit) {
     // Flight suit: zipper, mission patch, name tape.
     t.rect(13, 19, 2, 14, shade(shirt, 1.25)).circle(9.5, 22, 1.8, hex('#f2f2f2')).px(9, 22, hex('#d23c3c')).px(10, 21, hex('#2c5ec9'));

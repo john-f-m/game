@@ -401,6 +401,25 @@ console.log('4. Activities and coworkers');
   run(g, 14);
   expect(!g.tips.on && g.toasts.every((t) => t.kind !== 'tip'), 'hints can be turned off');
 
+  // Kerry's run, Stewart's challenge, Martin's greeting.
+  g = fresh();
+  standAt(g, npc(g, 'Kerry'));
+  press(g);
+  expect(g.player.staminaMax > 150 && g.player.stamina === g.player.staminaMax, `a run with Kerry grows the stamina bar (${g.player.staminaMax})`);
+  g = fresh();
+  standAt(g, npc(g, 'Stewart'));
+  run(g, 0.1);
+  expect(/Stewart's physics challenge/.test(g.prompt || ''), `Stewart's prompt ("${g.prompt}")`);
+  press(g);
+  expect(g.quiz && g.quiz.title === 'STEWART WOULD LIKE A WORD', 'his quiz has its own title');
+  g = fresh();
+  const martin = g.npcs.find((n) => n.greet);
+  Object.assign(g.player, { x: martin.x + 2, y: martin.y });
+  run(g, 0.2);
+  expect(g.toasts.some((t) => /Hello Doctor, Doctor/.test(t.text)), 'Martin greets you as you pass');
+  const stay = g.npcs.find((n) => n.stayPut);
+  expect(stay && stay.name === 'Martin' && stay.title !== martin.title, 'the other Martin eats lunch at his desk');
+
   // Everyone with a desk gets up now and then, and comes back.
   g = fresh({ errands: true });
   Object.assign(g.player, { x: 19.5, y: 10.5 });
@@ -425,7 +444,7 @@ console.log('4. Activities and coworkers');
   }
   expect(g.status === 'playing', 'the errand run stays in play');
   expect(left.size >= homes.length * 0.9, `people get up from their desks (${left.size} of ${homes.length} within 7 minutes)`);
-  const stayed = homes.filter((n) => !n.ambient && !left.has(n)).map((n) => n.name);
+  const stayed = homes.filter((n) => !n.ambient && !n.stayPut && !left.has(n)).map((n) => n.name);
   expect(!stayed.length, `the named cast take errands too${stayed.length ? ` (not: ${stayed.join(', ')})` : ''}`);
   expect(maxAway <= g.errandCap, `only a few are up at once (at most ${maxAway}, cap ${g.errandCap})`);
   expect(longest < 120, `errands are short (longest ${longest.toFixed(0)} s)`);

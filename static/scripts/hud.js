@@ -391,7 +391,7 @@ function drawMeters(ctx, g, o, m) {
   const s = p.sanity / PLAYER.sanity;
   bar(ctx, x, y, bw, 9 * u, s, s > 0.5 ? '#5fd38d' : s > 0.25 ? '#ffd166' : '#ff5a5a', u);
   y += 15 * u;
-  bar(ctx, x, y, bw, 4 * u, p.stamina / PLAYER.stamina, p.winded ? '#ff8f5a' : '#7fb8ff', u);
+  bar(ctx, x, y, bw, 4 * u, p.stamina / p.staminaMax, p.winded ? '#ff8f5a' : '#7fb8ff', u);
 
   y += 26 * u;
   ctx.font = font(12 * u, 700);
@@ -522,6 +522,7 @@ function drawPerks(ctx, g, o, m) {
   if (g.perks.flareWatch) rows.push('Flare watch: early warnings');
   if (g.perks.remote) rows.push('Remote access to the vehicle run');
   if (g.perks.priority) rows.push('Vehicle run: priority queue (2x)');
+  if (g.player.staminaMax > PLAYER.stamina) rows.push('Ran with Kerry: bigger stamina bar');
   if (!rows.length) return;
   ctx.font = font(12.5 * u, 650);
   const pw = o.compact ? 230 * u : 290 * u, ph = (12 + rows.length * 19) * u;
@@ -555,7 +556,7 @@ function drawQuiz(ctx, g, o) {
   ctx.textAlign = 'center';
   ctx.fillStyle = theme.accent;
   ctx.font = font(13 * u, 800, MONO);
-  const title = calc ? `MEDICAL DOSE CALCULATOR · ${q.step + 1}/${q.questions.length} · ${q.report.name.toUpperCase()}` : `${q.npc.name.toUpperCase()} PRESENTS: JEOPARDY!`;
+  const title = calc ? `MEDICAL DOSE CALCULATOR · ${q.step + 1}/${q.questions.length} · ${q.report.name.toUpperCase()}` : q.title;
   ctx.fillText(title, w / 2, y + 30 * u, bw - 30 * u);
   ctx.fillStyle = theme.text;
   ctx.font = theme.clueFont;

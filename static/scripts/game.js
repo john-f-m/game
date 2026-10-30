@@ -50,6 +50,7 @@ export const PERKS = {
   remote_access: { label: 'Remote access to the vehicle run' },
   sim_priority: { label: 'Priority queue: vehicle run 2x faster' },
   gcr_model: { label: 'GCR model results' },
+  cardio: { label: 'Ran with Kerry: bigger stamina bar' },
 };
 
 // Work that reports need besides sign-offs and stamps (encounters.json
@@ -242,6 +243,8 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
       perk, perkLine: n.perk_line || '', quiz, quizIdx: quiz.length ? Math.floor(rng() * quiz.length) : 0,
       gives: ITEMS[n.gives] ? n.gives : null, giveLine: n.give_line || '', gave: false,
       quizLines: { right: n.quiz_right, wrong: n.quiz_wrong, late: n.quiz_late },
+      quizTitle: n.quiz_title || `${name.toUpperCase()} PRESENTS: JEOPARDY!`, quizPrompt: n.quiz_prompt || `Play Jeopardy with ${name}`,
+      greet: Array.isArray(n.greet) ? n.greet : n.greet ? [n.greet] : null, greetCd: 0, stayPut: !!n.stay_put,
       blackHole: n.black_hole ? { radius: Number(n.black_hole.radius) || 3.2, topic: n.black_hole.topic || 'physics', lines: n.black_hole.lines || n.lines } : null,
       physics: n.physics ? { home: center(place(n.physics.home || n.patrol?.[0] || [x, y], `encounters.json ${name} home`)), lines: n.physics.lines || n.lines } : null,
       debrief: Array.isArray(n.debrief) && n.debrief.length ? n.debrief : null,
@@ -309,7 +312,7 @@ export function createGame({ office, encounters, difficulty = 'analyst', seed = 
     x: start[0] + 0.5, y: start[1] + 0.5,
     a: typeof facing === 'number' ? (facing * Math.PI) / 180 : FACING[facing] ?? 0,
     sanity: PLAYER.sanity, memos: PLAYER.startMemos, coffee: 0,
-    stamina: PLAYER.stamina, winded: false, restTimer: 0,
+    stamina: PLAYER.stamina, staminaMax: PLAYER.stamina, winded: false, restTimer: 0,
     items: new Set(),
     lock: 0, lockMax: 0, lockText: '', lockKind: '', hurt: 0, throwAnim: 0, drinkAnim: 0,
     moving: false, running: false, bob: 0, stepAcc: 0,
@@ -483,6 +486,7 @@ export function updateGame(g, input, dt) {
   for (const n of g.npcs) {
     if (n.cooldown > 0) n.cooldown -= dt;
     if (n.chatCd > 0) n.chatCd -= dt;
+    if (n.greetCd > 0) n.greetCd -= dt;
   }
   for (const s of g.stations) if (s.cooldown > 0) s.cooldown -= dt;
 
@@ -556,8 +560,8 @@ function movePlayer(g, input, dt) {
     if (p.stamina <= 0) p.winded = true;
   } else {
     p.restTimer -= dt;
-    if (p.restTimer <= 0) p.stamina = Math.min(PLAYER.stamina, p.stamina + PLAYER.staminaRegen * dt);
-    if (p.winded && p.stamina >= PLAYER.stamina * 0.35) p.winded = false;
+    if (p.restTimer <= 0) p.stamina = Math.min(p.staminaMax, p.stamina + PLAYER.staminaRegen * dt);
+    if (p.winded && p.stamina >= p.staminaMax * 0.35) p.winded = false;
   }
   // Kevin's gravity well drags you toward him.
   let px = 0, py = 0;
@@ -658,7 +662,7 @@ function promptFor(g, target) {
   }
   const label = n.title ? `${n.name} (${n.title})` : n.name;
   const signing = n.report && !n.signed;
-  if (!signing && n.perk === 'jeopardy' && n.cooldown <= 0) return `E: Play Jeopardy with ${n.name}`;
+  if (!signing && n.perk === 'jeopardy' && n.cooldown <= 0) return `E: ${n.quizPrompt}`;
   if (n.debrief && taskPending(g, 'astronaut')) return `E: Debrief the ${n.name.toLowerCase()}`;
   const wantsSomething = signing || (n.perk && !n.perkUsed && n.perk !== 'jeopardy') || (n.gives && !n.gave);
   if (wantsSomething && n.wants && hasItem(g.player, n.wants.item)) return `E: Give ${ITEMS[n.wants.item].name} to ${n.name}`;
@@ -765,7 +769,11 @@ function grantPerk(g, n) {
   const p = g.player;
   g.stats.perks++;
   sfx(g, 'pickup');
-  if (n.perk === 'freeze_managers') {
+  if (n.perk === 'cardio') {
+    p.staminaMax = Math.round(PLAYER.stamina * 1.6);
+    p.stamina = p.staminaMax;
+    toast(g, `${n.name}: "Just a quick 26 miles." Somehow you survive it: your stamina bar is bigger now.`, 'good', 6);
+  } else if (n.perk === 'freeze_managers') {
     for (const b of g.bosses) {
       if (b.reviewing > 0) continue;
       b.stun = FREEZE_TIME;
@@ -964,7 +972,7 @@ function startQuiz(g, n) {
   const q = n.quiz[n.quizIdx % n.quiz.length];
   n.quizIdx++;
   const p = g.player;
-  g.quiz = { kind: 'jeopardy', npc: n, clue: q.clue, choices: q.choices, answer: q.answer };
+  g.quiz = { kind: 'jeopardy', npc: n, title: n.quizTitle, clue: q.clue, choices: q.choices, answer: q.answer };
   p.lock = p.lockMax = QUIZ_TIME;
   p.lockKind = 'quiz';
   p.lockText = '';
@@ -1143,6 +1151,12 @@ function updateCoworkers(g, dt) {
     if (n.home) {
       if (!n.present) continue;
       n.moving = false;
+      // Greeters say hello whenever you pass by.
+      if (n.greet && n.greetCd <= 0 && p.lock <= 0 && dist(n, p) < 3.5 && canReach(g.world, p, n)) {
+        toast(g, `${n.name}: ${n.greet[n.talkCount % n.greet.length]}`, 'npc', 4);
+        n.turnTo = Math.atan2(p.y - n.y, p.x - n.x);
+        n.greetCd = 50;
+      }
       if (!(g.chat && g.chat.npc === n)) updateErrand(g, n, dt);
       turnNpc(n, dt);
       continue;
@@ -1181,6 +1195,7 @@ function updateErrand(g, n, dt) {
   const engaged = (g.dialog && g.dialog.npc === n) || (g.quiz && g.quiz.npc === n) || (n.held > 0 && n.held < 3);
   const facePlayer = () => { n.turnTo = Math.atan2(p.y - n.y, p.x - n.x); };
   if (!e) {
+    if (n.stayPut) return; // eats lunch at the desk, every day
     if ((n.errandTimer -= dt) > 0) return;
     n.errandTimer = 5 + g.rng() * 10; // not now: try again shortly
     if (engaged || dist(n, p) < 3 || g.npcs.filter((m) => m.errand).length >= g.errandCap) return;
