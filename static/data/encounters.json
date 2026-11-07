@@ -82,7 +82,7 @@
         14
       ],
       "npc": "Kevin",
-      "title": "Neutrino enthusiast",
+      "title": "Particle physicist",
       "look": {
         "hair": "#5a3a22",
         "skin": "#e8b48c",
@@ -138,11 +138,11 @@
         "ask": "I'll sign off on your Astronaut Dose Report if you grab me a blank R-13 from Eddie's filing cabinets. His office is on the north side. Don't let him see you.",
         "thanks": "A fresh R-13. Smells like bureaucracy. Your Astronaut Dose Report is signed."
       },
-      "title": "Dose analyst, laser pointer enthusiast"
+      "title": "Dose analyst"
     },
     {
       "npc": "Ryan",
-      "title": "IT",
+      "title": "IT specialist",
       "look": {
         "hair": "#6b4a2b",
         "skin": "#e6b391",
@@ -211,7 +211,7 @@
         22
       ],
       "npc": "Janet",
-      "title": "Mission Control Console",
+      "title": "Mission Control console operator",
       "look": {
         "hair": "#c9a36b",
         "skin": "#f0c8a0",
@@ -233,7 +233,7 @@
         22
       ],
       "npc": "Jennifer",
-      "title": "Console operations",
+      "title": "Console operations lead",
       "look": {
         "hair": "#1f1a17",
         "skin": "#c98e62",
@@ -254,7 +254,7 @@
         22
       ],
       "npc": "Mark",
-      "title": "Console IT",
+      "title": "Console systems administrator",
       "look": {
         "hair": "#7a5230",
         "skin": "#e6b391",
@@ -275,7 +275,7 @@
         7
       ],
       "npc": "Steve",
-      "title": "Spreadsheets",
+      "title": "Data analyst",
       "look": {
         "hair": "#4a3a2a",
         "skin": "#d9a37c",
@@ -296,7 +296,7 @@
         1
       ],
       "npc": "Ramona",
-      "title": "Dosimeters",
+      "title": "Dosimetry specialist",
       "look": {
         "hair": "#2b1d14",
         "skin": "#c98e62",
@@ -317,7 +317,7 @@
         1
       ],
       "npc": "Serkan",
-      "title": "Cosmic radiation modeling",
+      "title": "Radiation transport modeler",
       "look": {
         "hair": "#2b2622",
         "skin": "#d9a37c",
@@ -341,7 +341,7 @@
         5
       ],
       "npc": "Pat",
-      "title": "Galactic cosmic ray model",
+      "title": "GCR modeling scientist",
       "look": {
         "hair": "#b5b5b5",
         "skin": "#e8b48c",
@@ -367,7 +367,7 @@
         7
       ],
       "npc": "Amir",
-      "title": "Jeopardy Aficionado",
+      "title": "Radiation analyst",
       "look": {
         "hair": "#2a1d16",
         "skin": "#b98560",
@@ -485,7 +485,7 @@
         13
       ],
       "npc": "Mark",
-      "title": "People Person",
+      "title": "Program liaison",
       "look": {
         "hair": "#8a6a4a",
         "skin": "#e8b48c",
@@ -502,7 +502,7 @@
     },
     {
       "npc": "Astronaut",
-      "title": "Visiting crew member",
+      "title": "Astronaut",
       "look": {
         "hair": "#3b2a1e",
         "skin": "#e8b48c",
@@ -543,7 +543,7 @@
     },
     {
       "npc": "Neil",
-      "title": "Former manager",
+      "title": "Former SRAG manager",
       "look": {
         "skin": "#e8b48c",
         "shirt": "#cfe0f5",
